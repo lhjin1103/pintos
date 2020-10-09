@@ -238,8 +238,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
   {
     argv[argc] = token;
-    printf("parsing checkpoint %d: ", argc);
-    printf("%s\n", argv[argc]);
     argc ++;
   }
 
