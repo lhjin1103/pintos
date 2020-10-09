@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -28,8 +29,9 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
-  char *fn_copy;
+  char *fn_copy, *fn_copy_for_name, *save_ptr;
   tid_t tid;
+  char *token;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -38,8 +40,15 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  fn_copy_for_name = palloc_get_page (0);
+  if (fn_copy_for_name== NULL)
+    return TID_ERROR;
+  strlcpy (fn_copy_for_name, file_name, PGSIZE);
+
+  token = strtok_r(fn_copy_for_name, " ", &save_ptr);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);   //pass token insted of the whole file name
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -88,6 +97,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  while (true);
   return -1;
 }
 
@@ -195,7 +205,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char** argv, int argc);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -215,6 +225,24 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+  char *fn_copy, *token, *save_ptr;
+  int argc = 0;
+  char **argv = malloc(sizeof (char*) * 20);  //can we make a limit on the token number?
+
+  fn_copy = palloc_get_page (0);
+  if (fn_copy == NULL)
+    goto done;
+  strlcpy (fn_copy, file_name, PGSIZE);
+
+
+  for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr))
+  {
+    argv[argc] = token;
+    printf("parsing checkpoint %d: ", argc);
+    printf("%s\n", argv[argc]);
+    argc ++;
+  }
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -222,7 +250,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -302,7 +330,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, argv, argc))
     goto done;
 
   /* Start address. */
@@ -427,17 +455,60 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, char** argv, int argc) 
 {
   uint8_t *kpage;
   bool success = false;
-
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+      {
         *esp = PHYS_BASE;
+
+        char ** addr = malloc(sizeof(void *)*(argc+1));
+
+        /*push the arguments (argv[i]) into the stack.
+          Order does not matter, but we put it in the reverse order for convenience. */
+        
+        for (int i = argc-1; i >= 0; i--){
+          *esp = *esp - strlen(argv[i])-1;
+
+          memcpy(*esp, argv[i],strlen(argv[i])+1);
+
+          /*memorize the address of each argv.*/
+          addr[i] = (char *) *esp;
+        }
+        
+        addr[argc] = 0;
+
+        /*word-align the stack pointer. How to?*/
+        int align_no = (unsigned int)*esp % 4;
+        *esp = *esp - align_no;
+        
+        /*push the pointers into the stack.
+          Order 'does' matter here. We put it int the reverse order from argv[argc] to argv[0]. */
+          
+        for (int i = argc; i >= 0; i--){  
+          *esp = *esp - 4;
+          //memcpy(*esp, addr[i], 4);
+          *(char **)*esp = addr[i];
+        }
+
+        /*push argv into the stack.*/
+        *esp = *esp - 4;
+        *(char**)*esp = *esp + 4;
+
+        /*push argc into the stack.*/
+        *esp = *esp-4;
+        *(int *)*esp = argc;
+
+        /* push return address. */
+        *esp = *esp-4;
+        *(int *)*esp = 0;
+        
+      }
       else
         palloc_free_page (kpage);
     }
