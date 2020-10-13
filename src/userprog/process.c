@@ -53,7 +53,6 @@ process_execute (const char *file_name)
   tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);   //pass token insted of the whole file name
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  printf("checkpoint0\n");
   return tid;
 }
 
@@ -74,8 +73,7 @@ start_process (void *file_name_)
 
   success = load (file_name, &if_.eip, &if_.esp);
   
-  struct semaphore sema = thread_current() -> load_sema;
-  sema_up(&sema);
+  sema_up(&(thread_current() -> load_sema));
 
   /* If load failed, quit. */
   palloc_free_page (file_name);

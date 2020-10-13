@@ -103,6 +103,7 @@ syscall_exec(void *esp)
   //struct thread *child = get_from_tid(tid);
   //struct semaphore sema = child -> load_sema;
   //sema_down(&sema);
+  while (true){}
   return tid;
 }
 
