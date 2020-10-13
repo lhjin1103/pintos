@@ -5,8 +5,10 @@
 #include "threads/thread.h"
 #include "userprog/process.h"
 #include "devices/shutdown.h"
+#include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
+struct thread* get_from_tid(tid_t tid);
 
 void
 syscall_init (void) 
@@ -14,7 +16,6 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static void syscall_halt(void *esp);
 static int syscall_exit(void *esp);
 static int syscall_exec(void *esp);
 static int syscall_wait(void *esp);
@@ -40,8 +41,11 @@ syscall_handler (struct intr_frame *f)
       shutdown_power_off();
       break;
     case 1:   //SYS_EXIT
-      syscall_exit(esp);
+      {
+      int return_val = syscall_exit(esp);
+      f -> eax = return_val;
       break;
+      }
     case 2:   //SYS_EXEC
       syscall_exec(esp);
       break;
@@ -82,26 +86,24 @@ syscall_handler (struct intr_frame *f)
   //thread_exit ();
 }
 
-
-static void
-syscall_halt(void *esp UNUSED)
+static int
+syscall_exit(void *esp)
 {
-
+  int status = *(int *) (esp + 4);
+  printf("%s: exit(%d)\n", thread_current()->name, status);
+  thread_exit();
+  return status;
 }
 
 static int
-syscall_exit(void *esp UNUSED)
+syscall_exec(void *esp)
 {
-  //int status = *(int *) (esp + 4);
-  process_exit();
-  //how to return the status?
-  return 0;
-}
-
-static int
-syscall_exec(void *esp UNUSED)
-{
-  return 0;
+  const char *cmd_line = *(char **) (esp+4);
+  tid_t tid = process_execute(cmd_line);
+  //struct thread *child = get_from_tid(tid);
+  //struct semaphore sema = child -> load_sema;
+  //sema_down(&sema);
+  return tid;
 }
 
 static int 
@@ -174,4 +176,17 @@ static void
 syscall_close(void *esp UNUSED)
 {
 
+}
+
+struct thread*
+get_from_tid(tid_t tid)
+{
+  struct list_elem *e;
+  struct list child_list = thread_current() -> child_list;
+  for (e = list_begin (&child_list); e != list_end (&child_list); e = list_next (e))
+  {
+    struct thread *c = list_entry (e, struct thread, childelem);
+    if (c -> tid == tid) return c;
+  }
+  return NULL;
 }

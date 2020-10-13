@@ -93,6 +93,7 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
 
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -197,6 +198,10 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+
+  t -> parent = thread_current();
+  list_push_back(&(thread_current() -> child_list), &(t -> childelem));
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -463,6 +468,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  list_init (&(t->child_list));
+  sema_init(&(t->load_sema), 0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

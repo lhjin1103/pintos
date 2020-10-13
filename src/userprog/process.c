@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
+
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -51,6 +53,7 @@ process_execute (const char *file_name)
   tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);   //pass token insted of the whole file name
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  printf("checkpoint0\n");
   return tid;
 }
 
@@ -70,6 +73,9 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
 
   success = load (file_name, &if_.eip, &if_.esp);
+  
+  struct semaphore sema = thread_current() -> load_sema;
+  sema_up(&sema);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
