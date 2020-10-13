@@ -47,8 +47,11 @@ syscall_handler (struct intr_frame *f)
       break;
       }
     case 2:   //SYS_EXEC
-      syscall_exec(esp);
+    {
+      tid_t return_val = syscall_exec(esp);
+      f -> eax = return_val;
       break;
+    }
     case 3:   //SYS_WAIT
       syscall_wait(esp);
       break;
@@ -90,6 +93,7 @@ static int
 syscall_exit(void *esp)
 {
   int status = *(int *) (esp + 4);
+  thread_current()->exit_status = status;
   printf("%s: exit(%d)\n", thread_current()->name, status);
   thread_exit();
   return status;
@@ -100,11 +104,10 @@ syscall_exec(void *esp)
 {
   const char *cmd_line = *(char **) (esp+4);
   tid_t tid = process_execute(cmd_line);
-  //struct thread *child = get_from_tid(tid);
-  //struct semaphore sema = child -> load_sema;
-  //sema_down(&sema);
-  while (true){}
-  return tid;
+  struct thread *child = get_from_tid(tid);
+  sema_down(&(child -> load_sema));
+  if (child->load_success) return tid;
+  else return TID_ERROR;
 }
 
 static int 

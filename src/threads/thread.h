@@ -97,7 +97,12 @@ struct thread
     struct thread *parent;
     struct list child_list;
     struct list_elem childelem;
+    
     struct semaphore load_sema;
+    struct semaphore exit_sema;
+    
+    bool load_success;
+    int exit_status;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
