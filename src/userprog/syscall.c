@@ -8,7 +8,9 @@
 #include "threads/synch.h"
 #include "threads/palloc.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "lib/kernel/list.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -33,6 +35,7 @@ static void syscall_tell(void *esp);
 static void syscall_close(void *esp);
 
 int allocate_fd(struct list *fd_list);
+struct file* file_from_fd(int fd);
 //static void check_valid_pointer(void *p);
 
 static void
@@ -76,17 +79,29 @@ syscall_handler (struct intr_frame *f)
       break;
     }
     case 6:   //SYS_OPEN
-      syscall_open(esp);
+    {
+      int return_val = syscall_open(esp);
+      f -> eax = return_val;
       break;
+    }
     case 7:   //SYS_FILESIZE
-      syscall_filesize(esp);
+    {
+      int return_val = syscall_filesize(esp);
+      f -> eax = return_val;
       break;
+    }
     case 8:   //SYS_READ
-      syscall_read(esp);
+    {
+      int return_val = syscall_read(esp);
+      f -> eax = return_val;
       break;
+    }
     case 9:   //SYS_WRITE
-      syscall_write(esp);
+    {
+      int return_val = syscall_write(esp);
+      f -> eax = return_val;
       break;
+    }
     case 10:  //SYS_SEEK
       syscall_seek(esp);
       break;
@@ -166,30 +181,43 @@ syscall_open(void *esp)
   const char *filename = *(char **) (esp+4);
   if (filename==NULL) return -1;
   if (filename[0]=='\0') return -1;
-  return -1;
-  //struct file *opened_file = filesys_open(filename);
-  /*
+  struct file *opened_file = filesys_open(filename);
   if (opened_file == NULL) return -1;
   else{
-    struct fd_struct* new_fd;
-    new_fd -> fd = allocate_fd(&(thread_current()->fd_list));
-    new_fd -> file = opened_file;
-    list_push_back(&(thread_current()->fd_list), &(new_fd -> fileelem));
-    return new_fd -> fd;
+    struct fd_struct new_fd;
+    new_fd.fd = allocate_fd(&(thread_current()->fd_list));
+    new_fd.file = opened_file;
+    list_push_back(&(thread_current()->fd_list), &(new_fd.fileelem));
+    return new_fd.fd;
   }
-  */
+
 }
 
 static int 
 syscall_filesize(void *esp UNUSED)
 {
-  return 0;
+  int fd = *(int *) (esp+4);
+  struct file *f = file_from_fd(fd);
+  if (f==NULL) return -1;
+  return file_length(f);
 }
 
 static int 
 syscall_read(void *esp UNUSED)
 {
-  return 0;
+  int fd = *(int *) (esp + 4);
+  void *buffer = *(void **) (esp + 8);
+  unsigned int size = *(unsigned int *) (esp + 12);
+  if (fd==0)
+  {
+    return input_getc();
+  }
+  else if (fd==1) return -1;
+  else{
+    struct file *f = file_from_fd(fd);
+    if (f==NULL) return -1;
+    return file_read(f, buffer, size);
+  }
 }
 
 static int 
@@ -201,31 +229,49 @@ syscall_write(void *esp)
 
   if (fd == 1)
   {
-    putbuf(buffer, size);
-    return 0;
+    putbuf((char *) buffer, size);
+    return size;
   } 
+  else if (fd==0) return -1;
   else
   {
-    // one day we will make a file descriptor table..
-    return 0;
+  struct file *f = file_from_fd(fd);
+  if (f==NULL) return -1;
+  return file_write(f, buffer, size);
   }
 }
 static void 
-syscall_seek(void *esp UNUSED)
+syscall_seek(void *esp)
 {
-
+  int fd = *(int *) (esp + 4);
+  unsigned position = *(unsigned *) (esp + 8); 
+  struct file *f = file_from_fd(fd);
+  //if (f==NULL) return -1;
+  file_seek(f, position);
 }
 
 static void 
 syscall_tell(void *esp UNUSED)
 {
-
+  int fd = *(int *) (esp + 4);
+  struct file *f = file_from_fd(fd);
+  file_tell(f);
 }
 
 static void
 syscall_close(void *esp UNUSED)
 {
-
+  int fd = *(int *) (esp + 4);
+  struct list_elem *e;
+  struct list *fd_list = &(thread_current()->fd_list);
+  for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
+  {
+    struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
+    if (f->fd == fd) {
+      list_remove(e);
+      break;
+      }
+  }
 }
 
 /*
@@ -245,4 +291,17 @@ allocate_fd(struct list *fd_list)
   if (list_empty(fd_list)) return 2;
   else 
     return list_entry((list_back(fd_list)), struct fd_struct, fileelem) -> fd +1;
+}
+
+struct file*
+file_from_fd(int fd)
+{
+  struct list_elem *e;
+  struct list *fd_list = &(thread_current()->fd_list);
+  for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
+  {
+    struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
+    if (f->fd == fd) return f->file;
+  }
+  return NULL;
 }
