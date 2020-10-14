@@ -185,10 +185,10 @@ syscall_exit(int status)
   for (e = list_begin (child_list); e != list_end (child_list); e = list_next (e))
   {
     struct thread *c = list_entry (e, struct thread, childelem);
+    printf("%d\n", c->tid);
     if (c->status == THREAD_DYING) palloc_free_page(c);
     else c->parent = NULL;
   }
-
   thread_exit();
   return status;
 }
