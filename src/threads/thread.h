@@ -104,6 +104,8 @@ struct thread
     bool load_success;
     int exit_status;
 
+    struct list fd_list;
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -112,6 +114,12 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+struct fd_struct{
+   int fd;
+   struct file *file;
+   struct list_elem fileelem;
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

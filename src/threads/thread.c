@@ -94,6 +94,7 @@ thread_init (void)
   list_init (&all_list);
 
 
+
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -472,6 +473,8 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&(t->exit_sema), 0);
   t -> exit_status = -1;
 
+  list_init (&(t ->fd_list));
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -546,7 +549,7 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
-      //palloc_free_page (prev); : now this is done in process_wait()
+      if (prev->parent == NULL) palloc_free_page (prev);
       sema_up(&(prev->exit_sema));
       
     }

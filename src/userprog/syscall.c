@@ -6,6 +6,9 @@
 #include "userprog/process.h"
 #include "devices/shutdown.h"
 #include "threads/synch.h"
+#include "threads/palloc.h"
+#include "filesys/filesys.h"
+#include "lib/kernel/list.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -29,6 +32,8 @@ static void syscall_seek(void *esp);
 static void syscall_tell(void *esp);
 static void syscall_close(void *esp);
 
+int allocate_fd(struct list *fd_list);
+//static void check_valid_pointer(void *p);
 
 static void
 syscall_handler (struct intr_frame *f) 
@@ -59,11 +64,17 @@ syscall_handler (struct intr_frame *f)
       break;
     }
     case 4:   //SYS_CREATE
-      syscall_create(esp);
+    {
+      bool return_val = syscall_create(esp);
+      f -> eax = return_val;
       break;
+    }
     case 5:   //SYS_REMOVE
-      syscall_remove(esp);
+    {
+      bool return_val = syscall_remove(esp);
+      f -> eax = return_val;
       break;
+    }
     case 6:   //SYS_OPEN
       syscall_open(esp);
       break;
@@ -95,9 +106,21 @@ syscall_handler (struct intr_frame *f)
 static int
 syscall_exit(void *esp)
 {
+  //void *arg0 = esp+4;
+  //check_valid_pointer(arg0);
   int status = *(int *) (esp + 4);
   thread_current()->exit_status = status;
   printf("%s: exit(%d)\n", thread_current()->name, status);
+
+  struct list_elem *e;
+  struct list *child_list = &(thread_current() -> child_list);
+  for (e = list_begin (child_list); e != list_end (child_list); e = list_next (e))
+  {
+    struct thread *c = list_entry (e, struct thread, childelem);
+    if (c->status == THREAD_DYING) palloc_free_page(c);
+    else c->parent = NULL;
+  }
+
   thread_exit();
   return status;
 }
@@ -114,7 +137,7 @@ syscall_exec(void *esp)
 }
 
 static int 
-syscall_wait(void *esp UNUSED)
+syscall_wait(void *esp)
 {
   tid_t tid = *(tid_t *) (esp+4);
   int status = process_wait(tid);
@@ -122,21 +145,39 @@ syscall_wait(void *esp UNUSED)
 }
 
 static bool 
-syscall_create(void *esp UNUSED)
+syscall_create(void *esp)
 {
-  return 0;
+  const char *file = *(char **) (esp+4);
+  if (file==NULL) return -1;
+  unsigned initial_size = *(unsigned *) (esp+8);
+  return filesys_create(file, initial_size);
 }
 
 static bool 
-syscall_remove(void *esp UNUSED)
+syscall_remove(void *esp)
 {
-  return 0;
+  const char *file = *(char **) (esp+4);
+  return filesys_remove(file);
 }
 
 static int 
-syscall_open(void *esp UNUSED)
+syscall_open(void *esp)
 {
-  return 0;
+  const char *filename = *(char **) (esp+4);
+  if (filename==NULL) return -1;
+  if (filename[0]=='\0') return -1;
+  return -1;
+  //struct file *opened_file = filesys_open(filename);
+  /*
+  if (opened_file == NULL) return -1;
+  else{
+    struct fd_struct* new_fd;
+    new_fd -> fd = allocate_fd(&(thread_current()->fd_list));
+    new_fd -> file = opened_file;
+    list_push_back(&(thread_current()->fd_list), &(new_fd -> fileelem));
+    return new_fd -> fd;
+  }
+  */
 }
 
 static int 
@@ -185,4 +226,23 @@ static void
 syscall_close(void *esp UNUSED)
 {
 
+}
+
+/*
+static void
+check_valid_pointer(void *p)
+{
+  bool user = is_user_vaddr(p);
+  if (!user) exit(-1);
+  void *addr = lookup_page(thread_current()->pagedir, p, false);
+  if (addr == NULL) exit(-1);
+}
+*/
+
+int 
+allocate_fd(struct list *fd_list)
+{
+  if (list_empty(fd_list)) return 2;
+  else 
+    return list_entry((list_back(fd_list)), struct fd_struct, fileelem) -> fd +1;
 }
