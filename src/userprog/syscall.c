@@ -221,13 +221,19 @@ static bool
 syscall_create(char *file, unsigned initial_size)
 {
   if (file[0]=='\0') return 0;
-  return filesys_create(file, initial_size);
+  lock_acquire(&file_lock);
+  bool created = filesys_create(file, initial_size);
+  lock_release(&file_lock);
+  return created;
 }
 
 static bool 
 syscall_remove(char *file)
 {
-  return filesys_remove(file);
+  lock_acquire(&file_lock);
+  bool removed = filesys_remove(file);
+  lock_release(&file_lock);
+  return removed;
 }
 
 static int 
@@ -236,13 +242,20 @@ syscall_open(char *filename)
 
   if (filename==NULL) return -1;
   if (filename[0]=='\0') return -1;
+
+  lock_acquire(&file_lock);
   struct file *opened_file = filesys_open(filename);
-  if (opened_file == NULL) return -1;
+  
+  if (opened_file == NULL) {
+    lock_release(&file_lock);
+    return -1;
+  }
   else{
     struct fd_struct new_fd;
     new_fd.fd = allocate_fd(&(thread_current()->fd_list));
     new_fd.file = opened_file;
     list_push_back(&(thread_current()->fd_list), &(new_fd.fileelem));
+    lock_release(&file_lock); //here..???
     return new_fd.fd;
   }
 
@@ -253,7 +266,12 @@ syscall_filesize(int fd)
 {
   struct file *f = file_from_fd(fd);
   if (f==NULL) return -1;
-  return file_length(f);
+
+  lock_acquire(&file_lock);
+  int l = file_length(f);
+  lock_release(&file_lock);
+  
+  return l;
 }
 
 static int 
@@ -315,14 +333,18 @@ syscall_seek(int fd, unsigned position)
 {
   struct file *f = file_from_fd(fd);
   //if (f==NULL) return -1;
+  lock_acquire(&file_lock);
   file_seek(f, position);
+  lock_release(&file_lock);
 }
 
 static void 
 syscall_tell(int fd)
 {
   struct file *f = file_from_fd(fd);
+  lock_acquire(&file_lock);
   file_tell(f);
+  lock_release(&file_lock);
 }
 
 static void
