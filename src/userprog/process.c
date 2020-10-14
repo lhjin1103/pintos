@@ -103,8 +103,13 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while (true);
-  return -1;
+  struct thread *child = get_from_tid(child_tid);
+  if (child==NULL) return -1;
+  //have to check if wait() is called more than once.
+  sema_down(&(child->exit_sema));
+  int exit_status = child -> exit_status;
+  palloc_free_page(child);
+  return exit_status;
 }
 
 /* Free the current process's resources. */
@@ -537,4 +542,18 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+
+struct thread*
+get_from_tid(tid_t tid)
+{
+  struct list_elem *e;
+  struct list child_list = thread_current() -> child_list;
+  for (e = list_begin (&child_list); e != list_end (&child_list); e = list_next (e))
+  {
+    struct thread *c = list_entry (e, struct thread, childelem);
+    if (c -> tid == tid) return c;
+  }
+  return NULL;
 }

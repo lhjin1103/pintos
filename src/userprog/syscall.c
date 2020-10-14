@@ -8,7 +8,7 @@
 #include "threads/synch.h"
 
 static void syscall_handler (struct intr_frame *);
-struct thread* get_from_tid(tid_t tid);
+
 
 void
 syscall_init (void) 
@@ -53,8 +53,11 @@ syscall_handler (struct intr_frame *f)
       break;
     }
     case 3:   //SYS_WAIT
-      syscall_wait(esp);
+    {
+      tid_t return_val = syscall_wait(esp);
+      f -> eax = return_val;
       break;
+    }
     case 4:   //SYS_CREATE
       syscall_create(esp);
       break;
@@ -113,7 +116,9 @@ syscall_exec(void *esp)
 static int 
 syscall_wait(void *esp UNUSED)
 {
-  return 0;
+  tid_t tid = *(tid_t *) (esp+4);
+  int status = process_wait(tid);
+  return status;
 }
 
 static bool 
@@ -180,17 +185,4 @@ static void
 syscall_close(void *esp UNUSED)
 {
 
-}
-
-struct thread*
-get_from_tid(tid_t tid)
-{
-  struct list_elem *e;
-  struct list child_list = thread_current() -> child_list;
-  for (e = list_begin (&child_list); e != list_end (&child_list); e = list_next (e))
-  {
-    struct thread *c = list_entry (e, struct thread, childelem);
-    if (c -> tid == tid) return c;
-  }
-  return NULL;
 }
