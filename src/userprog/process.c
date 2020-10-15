@@ -53,6 +53,9 @@ process_execute (const char *file_name)
   tid = thread_create (token, PRI_DEFAULT, start_process, fn_copy);   //pass token insted of the whole file name
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  
+  palloc_free_page (fn_copy_for_name);
+  
   return tid;
 }
 
@@ -266,7 +269,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   char *fn_copy, *token, *save_ptr;
   int argc = 0;
-  char **argv = malloc(sizeof (char*) * 20);  //can we make a limit on the token number?
+  char **argv = malloc(sizeof (char*) * 20);
 
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
@@ -380,6 +383,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   lock_release(&file_lock);
+  
+  free(argv);
+  palloc_free_page(fn_copy);
   return success;
 }
 
@@ -506,7 +512,7 @@ setup_stack (void **esp, char** argv, int argc)
       {
         *esp = PHYS_BASE;
 
-        char ** addr = malloc(sizeof(void *)*(argc+1));
+        char **addr = malloc(sizeof(void *)*(argc+1));
 
         /*push the arguments (argv[i]) into the stack.
           Order does not matter, but we put it in the reverse order for convenience. */
@@ -547,6 +553,7 @@ setup_stack (void **esp, char** argv, int argc)
         *esp = *esp-4;
         *(int *)*esp = 0;
         
+        free(addr);
       }
       else
         palloc_free_page (kpage);

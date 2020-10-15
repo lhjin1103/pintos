@@ -168,8 +168,6 @@ syscall_handler (struct intr_frame *f)
       syscall_close(fd);
       break;
     }
-    default:
-      syscall_exit(-1);
   }
 
   //printf ("system call!\n");
