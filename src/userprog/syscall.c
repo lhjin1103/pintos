@@ -48,7 +48,12 @@ syscall_handler (struct intr_frame *f)
   void *esp = f -> esp;
 
   check_valid_pointer(esp);
+  check_valid_pointer(esp+1);
+  check_valid_pointer(esp+2);
+  check_valid_pointer(esp+3);
+
   int syscall_no = *(int *) esp;
+
   switch (syscall_no){
     case 0:   //SYS_HALT
       shutdown_power_off();
@@ -65,6 +70,7 @@ syscall_handler (struct intr_frame *f)
     {
       check_valid_pointer(esp+4);
       const char *cmd_line = *(char **) (esp+4);
+      
       check_valid_pointer(cmd_line);
 
       tid_t return_val = syscall_exec(cmd_line);
@@ -376,6 +382,7 @@ check_valid_pointer(void *p)
   if (!user) syscall_exit(-1);
   uint32_t *addr = lookup_page(thread_current()->pagedir, p, false);
   if (addr == NULL) syscall_exit(-1);
+
 }
 
 int 

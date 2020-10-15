@@ -12,6 +12,7 @@ void
 test_main (void) 
 {
   char *p = get_bad_boundary () - 1;
+
   *p = 'a';
   exec(p);
 

@@ -145,13 +145,23 @@ process_exit (void)
       pagedir_destroy (pd);
     }
   
-  struct list_elem *e;
+  //struct list_elem *e;
   struct list *fd_list = &(cur->fd_list);
+  /*
   for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
   {
     struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
     file_close(f->file);
   }
+  */
+
+  while (!list_empty(fd_list))
+  {
+    struct fd_struct *f = list_entry(list_pop_front(fd_list), struct fd_struct, fileelem);
+    file_close(f->file);
+    free(f);
+  }
+
   
 }
 
