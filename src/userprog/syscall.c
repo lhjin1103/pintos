@@ -14,6 +14,7 @@
 #include "devices/input.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -259,6 +260,7 @@ syscall_open(char *filename)
     new_fd->fd = allocate_fd(&(thread_current()->fd_list));
     new_fd->file = opened_file;
     list_push_back(&(thread_current()->fd_list), &(new_fd->fileelem));
+    
     lock_release(&file_lock); //here..???
     return new_fd->fd;
   }
@@ -335,7 +337,6 @@ static void
 syscall_seek(int fd, unsigned position)
 {
   struct file *f = file_from_fd(fd);
-  //if (f==NULL) return -1;
   lock_acquire(&file_lock);
   file_seek(f, position);
   lock_release(&file_lock);
@@ -359,7 +360,9 @@ syscall_close(int fd)
   {
     struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
     if (f->fd == fd) {
+      file_close(f->file);
       list_remove(e);
+      free(f);
       break;
       }
   }
