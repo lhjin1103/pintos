@@ -25,7 +25,7 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-static int syscall_exit(int status);
+int syscall_exit(int status);
 static int syscall_exec(char* cmd_line);
 static int syscall_wait(tid_t tid);
 static bool syscall_create(char *file, unsigned initial_size);
@@ -174,7 +174,7 @@ syscall_handler (struct intr_frame *f)
   //thread_exit ();
 }
 
-static int
+int
 syscall_exit(int status)
 {
 
