@@ -48,9 +48,6 @@ syscall_handler (struct intr_frame *f)
   void *esp = f -> esp;
 
   check_valid_pointer(esp);
-  check_valid_pointer(esp+1);
-  check_valid_pointer(esp+2);
-  check_valid_pointer(esp+3);
 
   int syscall_no = *(int *) esp;
 
@@ -375,14 +372,23 @@ syscall_close(int fd)
 }
 
 static void
-check_valid_pointer(void *p)
+check_valid(void *p)
 {
   if (p==NULL) syscall_exit(-1);
   bool user = is_user_vaddr(p);
   if (!user) syscall_exit(-1);
-  uint32_t *addr = lookup_page(thread_current()->pagedir, p, false);
+  uint32_t *addr = pagedir_get_page(thread_current()->pagedir, p);
   if (addr == NULL) syscall_exit(-1);
 
+}
+
+static void
+check_valid_pointer(void *p)
+{
+  check_valid(p);
+  check_valid(p+1);
+  check_valid(p+2);
+  check_valid(p+3);
 }
 
 int 
