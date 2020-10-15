@@ -1,6 +1,7 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <string.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "userprog/process.h"
@@ -13,7 +14,6 @@
 #include "devices/input.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
-
 
 static void syscall_handler (struct intr_frame *);
 
@@ -251,14 +251,17 @@ syscall_open(char *filename)
     return -1;
   }
   else{
-    struct fd_struct new_fd;
-    new_fd.fd = allocate_fd(&(thread_current()->fd_list));
-    new_fd.file = opened_file;
-    list_push_back(&(thread_current()->fd_list), &(new_fd.fileelem));
-    lock_release(&file_lock); //here..???
-    return new_fd.fd;
-  }
+    if (!strcmp(filename, thread_current()->name)) file_deny_write(opened_file);
 
+    struct fd_struct* new_fd;
+
+    new_fd = malloc(sizeof(struct fd_struct));
+    new_fd->fd = allocate_fd(&(thread_current()->fd_list));
+    new_fd->file = opened_file;
+    list_push_back(&(thread_current()->fd_list), &(new_fd->fileelem));
+    lock_release(&file_lock); //here..???
+    return new_fd->fd;
+  }
 }
 
 static int 

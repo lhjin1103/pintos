@@ -144,6 +144,15 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  
+  struct list_elem *e;
+  struct list *fd_list = &(cur->fd_list);
+  for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
+  {
+    struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
+    file_close(f->file);
+  }
+  
 }
 
 /* Sets up the CPU for running user code in the current
@@ -268,6 +277,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  lock_acquire(&file_lock);
   file = filesys_open (argv[0]);
   if (file == NULL) 
     {
@@ -359,6 +369,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+  lock_release(&file_lock);
   return success;
 }
 
