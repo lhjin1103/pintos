@@ -113,6 +113,8 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    struct hash *spt;
   };
 
 struct fd_struct{
@@ -160,5 +162,6 @@ int thread_get_load_avg (void);
 struct lock file_lock;
 #endif
 
+struct lock frame_table_lock;
 
 #endif /* threads/thread.h */

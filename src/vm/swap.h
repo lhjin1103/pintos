@@ -16,5 +16,7 @@
 
     I will fill these later!
 */
+
+void swap_out(void *frame);
     
 

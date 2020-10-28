@@ -14,6 +14,7 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+#include "vm/page.h"
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -28,6 +29,8 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+struct list frame_table;
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -40,6 +43,8 @@ static struct lock tid_lock;
 #ifdef USERPROG
 struct lock file_lock;
 #endif
+
+struct lock frame_table_lock;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -96,6 +101,10 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+
+  list_init (&frame_table);
+  lock_init (&frame_table_lock);
+
   #ifdef USERPROG
   lock_init(&file_lock);
   #endif
@@ -480,6 +489,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t -> exit_status = -1;
 
   list_init (&(t ->fd_list));
+
+  thread_current() -> spt = spt_init();
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
