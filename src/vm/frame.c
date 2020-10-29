@@ -4,6 +4,7 @@
 #include "threads/synch.h"
 #include "lib/kernel/list.h"
 #include <stdio.h>
+#include "userprog/pagedir.h"
 
 struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
@@ -18,15 +19,13 @@ frame_alloc(struct list *frame_table, enum palloc_flags flags, struct spte *spte
     if (vaddr == NULL) 
     {
         lock_release(&frame_table_lock);
-        return NULL;
-        /*
         struct fte *victim_fte = find_victim();
         vaddr = victim_fte -> frame;
         swap_out(vaddr);
         spte_update(victim_fte->spte);
         frame_table_update(victim_fte, spte, thread_current());
 
-        */
+        return victim_fte;
     }
     else 
     {   
@@ -49,14 +48,21 @@ frame_destroy(struct fte *fte)
 struct fte *
 find_victim()
 {
-    /* Not yet impelemented*/
-    return NULL;
+    /* Currently implemented in FIFO.
+       Need to change to a better algorithm. */
+    struct list_elem *evict_elem = list_pop_back(&frame_table);
+    list_push_front(&frame_table, evict_elem);    
+    return list_entry (evict_elem, struct fte, elem);
 }
 
 void 
 frame_table_update(struct fte *fte UNUSED , struct spte *spte UNUSED, struct thread *t UNUSED)
 {
-    /*Not yet implemented */
+    /* Not yet impelemented*/
+    pagedir_clear_page(t->pagedir, fte->spte->upage);
+    fte->spte = spte;
+    fte->thread = thread_current();
+
 }
 
 struct fte *

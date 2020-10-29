@@ -22,9 +22,10 @@ spt_init()
 
 
 void 
-spte_update(struct spte *spte UNUSED)
+spte_update(struct spte *spte)
 {
-    /* Not yet implemented */
+    spte -> state = SWAP_DISK;
+    //update uaddr
 };
 
 
