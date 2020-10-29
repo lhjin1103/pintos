@@ -20,7 +20,10 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 //#include "vm/page.h"
+
+
 #include "vm/frame.h"
+#include "lib/kernel/hash.h"
 
 
 static thread_func start_process NO_RETURN;
@@ -76,7 +79,9 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 
-  success = load (file_name, &if_.eip, &if_.esp);
+  thread_current() -> spt = spt_init();
+  if (thread_current() -> spt ==NULL) success = false;
+  else success = load (file_name, &if_.eip, &if_.esp);
   thread_current() -> load_success = success;
   
   sema_up(&(thread_current() -> load_sema));
@@ -126,6 +131,9 @@ process_wait (tid_t child_tid)
   return exit_status;
 }
 
+static void destroy_vm(struct hash_elem *elem, void *aux UNUSED);
+hash_action_func destroy_vm;
+
 /* Free the current process's resources. */
 void
 process_exit (void)
@@ -148,17 +156,10 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-    }
+    }  
   
-  //struct list_elem *e;
+
   struct list *fd_list = &(cur->fd_list);
-  /*
-  for (e = list_begin(fd_list); e != list_end(fd_list); e = list_next(e))
-  {
-    struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
-    file_close(f->file);
-  }
-  */
 
   while (!list_empty(fd_list))
   {
@@ -167,6 +168,9 @@ process_exit (void)
     free(f);
   }
 
+  struct hash *spt = cur -> spt;
+  hash_destroy(spt, destroy_vm);
+  free(spt);
   
 }
 
@@ -473,21 +477,33 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       /* Implemented in project 3. */
       struct spte *spte = spte_create(MEMORY, upage, 0);
-      struct fte *fte = frame_alloc(PAL_USER, spte);
+      if (spte == NULL) return false;
+      
+      struct fte *fte = frame_alloc(&frame_table, PAL_USER, spte);
+      if (fte == NULL)
+      {
+        spte_destroy(spte);
+        return false;
+      }
       uint8_t *kpage = fte -> frame;
-
+      
 
       /* Get a page of memory. */
-      //uint8_t *kpage = palloc_get_page (PAL_USER);
+      /* Blocked in project 3. replaced with the upper code */
+      /*
+      uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
+      */
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
-          //palloc_free_page (kpage);
+          
           spte_destroy(spte);
           frame_destroy(fte);
+          palloc_free_page (kpage);
+          
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -495,9 +511,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Add the page to the process's address space. */
       if (!install_page (upage, kpage, writable)) 
         {
-          //palloc_free_page (kpage);
+
           spte_destroy(spte);
           frame_destroy(fte);
+          palloc_free_page (kpage);
+          
           return false; 
         }
 
@@ -516,10 +534,26 @@ setup_stack (void **esp, char** argv, int argc)
 {
   uint8_t *kpage;
   bool success = false;
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+
+  /* Implemented in project 3. */
+
+  uint8_t *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+  
+  struct spte *spte = spte_create(MEMORY, upage, 0);
+  if (spte == NULL) return false;
+  
+  struct fte *fte = frame_alloc(&frame_table, PAL_USER | PAL_ZERO, spte);
+  if (fte == NULL)
+  {
+    spte_destroy(spte);
+    return false;
+  }
+  kpage = fte -> frame;
+
+  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      success = install_page (upage, kpage, true);
       if (success)
       {
         *esp = PHYS_BASE;
@@ -568,7 +602,11 @@ setup_stack (void **esp, char** argv, int argc)
         free(addr);
       }
       else
+      {
+        spte_destroy(spte);
+        frame_destroy(fte);
         palloc_free_page (kpage);
+      }
     }
   return success;
 }
@@ -605,4 +643,13 @@ get_from_tid(tid_t tid)
     if (c -> tid == tid) return c;
   }
   return NULL;
+}
+
+static void
+destroy_vm(struct hash_elem *elem, void *aux UNUSED)
+{
+  struct spte *spte = hash_entry(elem, struct spte, elem);
+  struct fte *fte = fte_from_spte(&frame_table, spte);
+  spte_destroy(spte);
+  frame_destroy(fte);
 }

@@ -12,8 +12,10 @@ struct fte
 };
 
 
-struct fte *frame_alloc(enum palloc_flags flags, struct spte *spte);
-void * frame_destroy(struct fte *fte);
+struct fte *frame_alloc(struct list *frame_table, enum palloc_flags flags, struct spte *spte);
+void frame_destroy(struct fte *fte);
+
+struct fte * fte_from_spte(struct list *frame_table, struct spte *spte);
 /*
 find_victim();
 

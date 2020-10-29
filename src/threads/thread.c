@@ -46,6 +46,7 @@ struct lock file_lock;
 
 struct lock frame_table_lock;
 
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -489,8 +490,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t -> exit_status = -1;
 
   list_init (&(t ->fd_list));
-
-  thread_current() -> spt = spt_init();
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

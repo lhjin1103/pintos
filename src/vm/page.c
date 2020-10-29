@@ -1,6 +1,9 @@
 #include "vm/page.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include <stdio.h>
+//#include "vm/frame.h"
+
 
 unsigned hashing_func(const struct hash_elem *e, void *aux UNUSED);
 bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux UNUSED);
@@ -13,15 +16,13 @@ spt_init()
 {
     struct hash *hash_table;
     hash_table = malloc(sizeof(struct hash));
-
-    hash_init(hash_table, hashing_func, less_func, NULL);
-
+    if (hash_table != NULL) hash_init(hash_table, hashing_func, less_func, NULL);   
     return hash_table;
 }
 
 
 void 
-spte_update(struct spte *spte)
+spte_update(struct spte *spte UNUSED)
 {
     /* Not yet implemented */
 };
@@ -32,13 +33,13 @@ spte_create(enum page_status state, void *upage, block_sector_t swap_location)
 {
     struct spte *new_spte;
     new_spte = malloc(sizeof(struct spte));
-
-    new_spte -> state = state;
-    new_spte -> upage = upage;
-    new_spte -> swap_location = swap_location;
-
-    hash_insert(thread_current() -> spt, &(new_spte -> elem));
-    
+    if (new_spte != NULL)
+    {
+        new_spte -> state = state;
+        new_spte -> upage = upage;
+        new_spte -> swap_location = swap_location;
+        hash_insert(thread_current() -> spt, &(new_spte -> elem));
+    }
     return new_spte;
 }
 

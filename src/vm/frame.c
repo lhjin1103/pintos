@@ -2,6 +2,8 @@
 #include "threads/malloc.h"
 #include "vm/swap.h"
 #include "threads/synch.h"
+#include "lib/kernel/list.h"
+#include <stdio.h>
 
 struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
@@ -9,7 +11,7 @@ struct fte * create_fte(void *vaddr, struct spte *spte);
 
 
 struct fte *
-frame_alloc(enum palloc_flags flags, struct spte *spte)
+frame_alloc(struct list *frame_table, enum palloc_flags flags, struct spte *spte)
 {
     lock_acquire(&frame_table_lock);
     void *vaddr = palloc_get_page(flags);
@@ -23,22 +25,24 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         swap_out(vaddr);
         spte_update(victim_fte->spte);
         frame_table_update(victim_fte, spte, thread_current());
+
         */
     }
     else 
     {   
         struct fte *return_fte = create_fte(vaddr, spte);
+        list_push_back(frame_table, &(return_fte -> elem));
         lock_release(&frame_table_lock);
         return return_fte;
     }
 }
 
-void*
+void
 frame_destroy(struct fte *fte)
 {
     lock_acquire(&frame_table_lock);
+    list_remove(&(fte->elem));
     free(fte);
-    palloc_free_page(fte -> frame);
     lock_release(&frame_table_lock);
 }
 
@@ -46,10 +50,11 @@ struct fte *
 find_victim()
 {
     /* Not yet impelemented*/
+    return NULL;
 }
 
 void 
-frame_table_update(struct fte *fte, struct spte *spte, struct thread *t)
+frame_table_update(struct fte *fte UNUSED , struct spte *spte UNUSED, struct thread *t UNUSED)
 {
     /*Not yet implemented */
 }
@@ -65,4 +70,16 @@ create_fte(void *vaddr, struct spte *spte)
 
     spte -> state = MEMORY;
     return new_fte;
+}
+
+struct fte *
+fte_from_spte(struct list *frame_table, struct spte *spte)
+{
+    struct list_elem *e;
+    for (e = list_begin(frame_table); e != list_end(frame_table); e = list_next(e))
+    {
+        struct fte *fte = list_entry(e, struct fte, elem);
+        if (fte -> spte == spte) return fte;
+    }
+    return NULL;
 }
