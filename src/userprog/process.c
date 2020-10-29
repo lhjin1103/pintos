@@ -19,7 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
-#include "vm/page.h"
+//#include "vm/page.h"
 #include "vm/frame.h"
 
 
@@ -472,7 +472,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Implemented in project 3. */
-      struct spte *spte = spte_create(MEMORY, upage, NULL);
+      struct spte *spte = spte_create(MEMORY, upage, 0);
       struct fte *fte = frame_alloc(PAL_USER, spte);
       uint8_t *kpage = fte -> frame;
 

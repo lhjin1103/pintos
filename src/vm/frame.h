@@ -1,6 +1,7 @@
 #include "lib/kernel/list.h"
 #include "threads/thread.h"
 #include "vm/page.h"
+#include "threads/palloc.h"
 
 struct fte
 {

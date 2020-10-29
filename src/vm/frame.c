@@ -1,12 +1,11 @@
 #include "vm/frame.h"
-#include "threads/palloc.h"
 #include "threads/malloc.h"
 #include "vm/swap.h"
 #include "threads/synch.h"
 
-struct fte *find_victim();
+struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
-void create_fte(void *vaddr, struct spte *spte);
+struct fte * create_fte(void *vaddr, struct spte *spte);
 
 
 struct fte *
@@ -26,10 +25,12 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         frame_table_update(victim_fte, spte, thread_current());
         */
     }
-    else struct fte *return_fte = create_fte(vaddr, spte);
-    lock_release(&frame_table_lock);
-
-    return return_fte;
+    else 
+    {   
+        struct fte *return_fte = create_fte(vaddr, spte);
+        lock_release(&frame_table_lock);
+        return return_fte;
+    }
 }
 
 void*

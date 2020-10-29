@@ -20,7 +20,7 @@ struct spte
 };
 
 
-struct hash *spt_init();
+struct hash *spt_init(void);
 void spte_update(struct spte *spte);
 struct spte *spte_create(enum page_status state, void *upage, block_sector_t swap_location);
 void spte_destroy(struct spte *spte);
