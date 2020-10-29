@@ -14,7 +14,10 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
+
 #include "vm/page.h"
+#include "vm/swap.h"
+
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -31,6 +34,7 @@ static struct list all_list;
 
 struct list frame_table;
 
+
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -45,7 +49,6 @@ struct lock file_lock;
 #endif
 
 struct lock frame_table_lock;
-
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 

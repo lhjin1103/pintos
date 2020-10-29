@@ -162,10 +162,8 @@ int thread_get_load_avg (void);
 struct lock file_lock;
 #endif
 
-#ifdef VM
 struct list frame_table;
 
 struct lock frame_table_lock;
-#endif
 
 #endif /* threads/thread.h */
