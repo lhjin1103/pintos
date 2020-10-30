@@ -11,8 +11,12 @@ struct fte
     struct list_elem elem;
 };
 
+struct list frame_table;
+struct lock frame_table_lock;
 
-struct fte *frame_alloc(struct list *frame_table, enum palloc_flags flags, struct spte *spte);
+
+void frame_init();
+struct fte *frame_alloc(enum palloc_flags flags, struct spte *spte);
 void frame_destroy(struct fte *fte);
 
 struct fte * fte_from_spte(struct list *frame_table, struct spte *spte);

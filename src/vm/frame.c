@@ -10,30 +10,43 @@ struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
 struct fte * create_fte(void *vaddr, struct spte *spte);
 
+struct list frame_table;
+struct lock frame_table_lock;
+
+void
+frame_init()
+{
+    list_init (&frame_table);
+    lock_init (&frame_table_lock);
+}
 
 struct fte *
-frame_alloc(struct list *frame_table, enum palloc_flags flags, struct spte *spte)
+frame_alloc(enum palloc_flags flags, struct spte *spte)
 {
-    lock_acquire(&frame_table_lock);
+    struct fte *fte;
     void *vaddr = palloc_get_page(flags);
-    if (vaddr == NULL) 
+    
+    if (!vaddr) 
     {
-        lock_release(&frame_table_lock);
-        struct fte *victim_fte = find_victim();
-        vaddr = victim_fte -> frame;
-        swap_out(vaddr);
-        spte_update(victim_fte->spte);
-        frame_table_update(victim_fte, spte, thread_current());
+        /* No empty page in user pool. Need swapping. */
+        lock_acquire(&frame_table_lock);
+        fte = find_victim();
+        vaddr = fte -> frame;
+        ASSERT(vaddr != NULL);
 
-        return victim_fte;
+        block_sector_t swap_location = swap_out(vaddr);
+        spte_update(fte->spte, swap_location);
+        frame_table_update(fte, spte, thread_current());
+        lock_release(&frame_table_lock);
     }
     else 
     {   
-        struct fte *return_fte = create_fte(vaddr, spte);
-        list_push_back(frame_table, &(return_fte -> elem));
-        lock_release(&frame_table_lock);
-        return return_fte;
+        /* There is an empty page in user pool */
+        fte = create_fte(vaddr, spte);  
     }
+    
+    //spte -> state = MEMORY; this is done in spte_create
+    return fte;
 }
 
 void
@@ -56,13 +69,11 @@ find_victim()
 }
 
 void 
-frame_table_update(struct fte *fte UNUSED , struct spte *spte UNUSED, struct thread *t UNUSED)
+frame_table_update(struct fte *fte, struct spte *spte , struct thread *t)
 {
-    /* Not yet impelemented*/
     pagedir_clear_page(t->pagedir, fte->spte->upage);
     fte->spte = spte;
-    fte->thread = thread_current();
-
+    fte->thread = t;
 }
 
 struct fte *
@@ -73,8 +84,9 @@ create_fte(void *vaddr, struct spte *spte)
     new_fte -> frame = vaddr;
     new_fte -> spte = spte;
     new_fte -> thread = thread_current();
-
-    spte -> state = MEMORY;
+    lock_acquire(&frame_table_lock);
+    list_push_back(&frame_table, &(new_fte -> elem));
+    lock_release(&frame_table_lock);
     return new_fte;
 }
 

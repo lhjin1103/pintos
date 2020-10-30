@@ -79,9 +79,8 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
 
-  thread_current() -> spt = spt_init();
-  if (thread_current() -> spt ==NULL) success = false;
-  else success = load (file_name, &if_.eip, &if_.esp);
+  spt_init(&(thread_current() -> spt));
+  success = load (file_name, &if_.eip, &if_.esp);
   thread_current() -> load_success = success;
   
   sema_up(&(thread_current() -> load_sema));
@@ -168,9 +167,7 @@ process_exit (void)
     free(f);
   }
 
-  struct hash *spt = cur -> spt;
-  hash_destroy(spt, destroy_vm);
-  free(spt);
+  hash_destroy(&(cur -> spt), destroy_vm);
   
 }
 
@@ -397,7 +394,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -479,7 +476,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       struct spte *spte = spte_create(MEMORY, upage, 0);
       if (spte == NULL) return false;
       
-      struct fte *fte = frame_alloc(&frame_table, PAL_USER, spte);
+      struct fte *fte = frame_alloc(PAL_USER, spte);
       if (fte == NULL)
       {
         spte_destroy(spte);
@@ -542,7 +539,7 @@ setup_stack (void **esp, char** argv, int argc)
   struct spte *spte = spte_create(MEMORY, upage, 0);
   if (spte == NULL) return false;
   
-  struct fte *fte = frame_alloc(&frame_table, PAL_USER | PAL_ZERO, spte);
+  struct fte *fte = frame_alloc(PAL_USER | PAL_ZERO, spte);
   if (fte == NULL)
   {
     spte_destroy(spte);
@@ -620,7 +617,7 @@ setup_stack (void **esp, char** argv, int argc)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
@@ -630,7 +627,6 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
-
 
 struct thread*
 get_from_tid(tid_t tid)
@@ -649,7 +645,11 @@ static void
 destroy_vm(struct hash_elem *elem, void *aux UNUSED)
 {
   struct spte *spte = hash_entry(elem, struct spte, elem);
-  struct fte *fte = fte_from_spte(&frame_table, spte);
+  if (spte -> state == MEMORY)
+  {
+    struct fte *fte = fte_from_spte(&frame_table, spte);
+    ASSERT (fte != NULL);
+    frame_destroy(fte);
+  }
   spte_destroy(spte);
-  frame_destroy(fte);
 }

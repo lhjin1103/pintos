@@ -75,6 +75,7 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
             return NULL; 
       
           *pde = pde_create (pt);
+
         }
       else
         return NULL;
@@ -112,6 +113,9 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
     {
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
+
+      /*Implemented in Project 3-1 */
+      
       return true;
     }
   else

@@ -32,8 +32,6 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
-struct list frame_table;
-
 
 /* Idle thread. */
 static struct thread *idle_thread;
@@ -47,8 +45,6 @@ static struct lock tid_lock;
 #ifdef USERPROG
 struct lock file_lock;
 #endif
-
-struct lock frame_table_lock;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -105,9 +101,6 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
-  list_init (&frame_table);
-  lock_init (&frame_table_lock);
 
   #ifdef USERPROG
   lock_init(&file_lock);

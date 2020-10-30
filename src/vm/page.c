@@ -2,6 +2,7 @@
 #include "threads/malloc.h"
 #include "threads/thread.h"
 #include <stdio.h>
+#include "threads/thread.h"
 //#include "vm/frame.h"
 
 
@@ -11,21 +12,29 @@ bool less_func(const struct hash_elem *a, const struct hash_elem *b, void *aux U
 hash_hash_func hashing_func;
 hash_less_func less_func;
 
-struct hash *
-spt_init()
+void
+spt_init(struct hash *spt)
 {
-    struct hash *hash_table;
-    hash_table = malloc(sizeof(struct hash));
-    if (hash_table != NULL) hash_init(hash_table, hashing_func, less_func, NULL);   
-    return hash_table;
+    hash_init(spt, hashing_func, less_func, NULL);   
 }
 
+struct spte *
+spte_from_addr(void *addr)
+{
+    struct spte std_spte;
+    struct hash_elem *target_hash_elem;
+
+    std_spte.upage = addr;
+    target_hash_elem = hash_find(&(thread_current()->spt), &(std_spte.elem));
+    
+    return hash_entry(target_hash_elem, struct spte, elem);
+}
 
 void 
-spte_update(struct spte *spte)
+spte_update(struct spte *spte, block_sector_t swap_location)
 {
     spte -> state = SWAP_DISK;
-    //update uaddr
+    spte -> swap_location = swap_location;
 };
 
 
@@ -39,7 +48,9 @@ spte_create(enum page_status state, void *upage, block_sector_t swap_location)
         new_spte -> state = state;
         new_spte -> upage = upage;
         new_spte -> swap_location = swap_location;
-        hash_insert(thread_current() -> spt, &(new_spte -> elem));
+        //have to be modified
+        new_spte -> writable = true;
+        hash_insert(&(thread_current() -> spt), &(new_spte -> elem));
     }
     return new_spte;
 }

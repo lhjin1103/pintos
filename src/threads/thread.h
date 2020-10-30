@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "threads/synch.h"
+#include "lib/kernel/hash.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -114,7 +115,7 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    struct hash *spt;
+    struct hash spt;
   };
 
 struct fd_struct{
@@ -162,8 +163,6 @@ int thread_get_load_avg (void);
 struct lock file_lock;
 #endif
 
-struct list frame_table;
 
-struct lock frame_table_lock;
 
 #endif /* threads/thread.h */

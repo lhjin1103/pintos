@@ -2,7 +2,6 @@
 #include "lib/kernel/bitmap.h"
 #include <stdio.h>
 
-
 struct bitmap *swap_table;
 struct block *swap_disk;
 struct lock swap_lock;

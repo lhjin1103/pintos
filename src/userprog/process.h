@@ -9,5 +9,6 @@ void process_exit (void);
 void process_activate (void);
 
 struct thread* get_from_tid(tid_t tid);
+bool install_page(void *upage, void *kpage, bool writable);
 
 #endif /* userprog/process.h */

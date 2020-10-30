@@ -6,12 +6,20 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
+#include "userprog/process.h"
+#include "vm/swap.h"
+
+#define STACK_HEURISTIC 32
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+static bool load_from_exec(struct spte *spte);
+static bool load_from_swap(struct spte *spte);
+static bool stack_growth(void *addr);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -150,10 +158,32 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* implemented in project2.
+  /* Implemented in project 3-1 and 3-2.*/
+
+  bool load = false;
+   if (not_present && is_user_vaddr(fault_addr)) 
+   {
+      struct spte *spte = spte_from_addr(fault_addr);
+      if (spte)
+      {
+         ASSERT(spte -> state != MEMORY);
+         if(spte->state == EXEC_FILE)
+            load = load_from_exec(spte);
+         else if (spte->state == SWAP_DISK)
+            load = load_from_swap(spte);
+      }else if (fault_addr >= f -> esp - STACK_HEURISTIC)
+         load = stack_growth(fault_addr);
+   }
+
+  if (load) return;
+
+   /* implemented in project2.
      If a user program try to access to not-present page or kernel address,
      it exits with exit status -1.*/
-  if (user && (not_present || is_kernel_vaddr(fault_addr))) syscall_exit(-1);
+  if (user && (not_present || is_kernel_vaddr(fault_addr))) 
+  {
+     syscall_exit(-1);
+  }
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
@@ -166,3 +196,32 @@ page_fault (struct intr_frame *f)
   kill (f);
 }
 
+static bool
+load_from_exec(struct spte *spte)
+{
+   return false;
+}
+
+static bool
+load_from_swap(struct spte *spte)
+{
+   struct fte *fte = frame_alloc(PAL_USER, spte);
+   if (fte==NULL) return false;
+   void *frame = fte -> frame;
+   if (!install_page(spte->upage, frame, spte->writable)) return false;
+   swap_in(spte -> swap_location, frame);
+   spte -> state = MEMORY;
+   return true;
+}
+
+static bool
+stack_growth(void *addr)
+{
+   void *upage = pg_round_down(addr);
+   struct spte *spte = spte_create(MEMORY, upage, 0);
+   if (!spte) return false;
+   struct fte *fte = frame_alloc(PAL_USER, spte);
+   if (!fte) return false;
+   void *kpage = fte -> frame;
+   return install_page(upage, kpage, true);
+}

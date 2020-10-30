@@ -39,6 +39,7 @@
 #endif
 
 #include "vm/swap.h"
+#include "vm/frame.h"
 
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
@@ -130,6 +131,7 @@ main (void)
 #endif
 
   swap_init();
+  frame_init();
 
   printf ("Boot complete.\n");
   
