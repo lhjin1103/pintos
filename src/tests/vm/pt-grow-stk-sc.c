@@ -22,7 +22,7 @@ test_main (void)
   CHECK ((handle = open ("sample.txt")) > 1, "open \"sample.txt\"");
   CHECK (write (handle, sample, slen) == slen, "write \"sample.txt\"");
   close (handle);
-
+  
   /* Read back via read(). */
   CHECK ((handle = open ("sample.txt")) > 1, "2nd open \"sample.txt\"");
   CHECK (read (handle, buf2 + 32768, slen) == slen, "read \"sample.txt\"");

@@ -26,6 +26,7 @@
 #include "lib/kernel/hash.h"
 
 
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -155,6 +156,8 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      
+      hash_destroy(&(cur -> spt), destroy_vm);
     }  
   
 
@@ -167,7 +170,7 @@ process_exit (void)
     free(f);
   }
 
-  hash_destroy(&(cur -> spt), destroy_vm);
+
   
 }
 
@@ -475,7 +478,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Implemented in project 3. */
       struct spte *spte = spte_create(MEMORY, upage, 0);
       if (spte == NULL) return false;
-      spte -> writable = false;
+      spte -> writable = writable;
       
       struct fte *fte = frame_alloc(PAL_USER, spte);
       if (fte == NULL)

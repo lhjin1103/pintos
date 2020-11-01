@@ -44,6 +44,7 @@ spte_update(struct spte *spte, block_sector_t swap_location)
 struct spte *
 spte_create(enum page_status state, void *upage, block_sector_t swap_location)
 {
+    ASSERT(pg_round_down(upage) == upage);
     struct spte *new_spte;
     new_spte = malloc(sizeof(struct spte));
     if (new_spte != NULL)

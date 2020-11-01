@@ -165,7 +165,9 @@ page_fault (struct intr_frame *f)
    if (write)
    {
       struct spte *spte = spte_from_addr(fault_addr);
-      if (spte && (! spte -> writable)) syscall_exit(-1);
+      if (spte && (! spte -> writable)) {
+         syscall_exit(-1);
+      }
    }
 
   bool load = false;
@@ -181,7 +183,9 @@ page_fault (struct intr_frame *f)
          else if (spte->state == SWAP_DISK)
             load = load_from_swap(spte);
       }else if (fault_addr >= f -> esp - STACK_HEURISTIC)
+      {
          load = stack_growth(fault_addr);
+      }
    }
 
   if (load) return;
@@ -217,7 +221,10 @@ load_from_swap(struct spte *spte)
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (fte==NULL) return false;
    void *frame = fte -> frame;
-   if (!install_page(spte->upage, frame, spte->writable)) return false;
+   if (!install_page(spte->upage, frame, spte->writable)) {
+      frame_destroy(fte);
+      return false;
+   }
    swap_in(spte -> swap_location, frame);
    spte -> state = MEMORY;
    return true;
@@ -233,5 +240,11 @@ stack_growth(void *addr)
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (!fte) return false;
    void *kpage = fte -> frame;
-   return install_page(upage, kpage, true);
+   if (!install_page(upage, kpage, true)) 
+   {
+      spte_destroy(spte);
+      frame_destroy(fte);
+      return false;
+   }
+   return true;
 }

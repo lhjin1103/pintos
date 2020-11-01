@@ -5,6 +5,7 @@
 #include "lib/kernel/list.h"
 #include <stdio.h>
 #include "userprog/pagedir.h"
+#include "threads/vaddr.h"
 
 struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
@@ -43,11 +44,13 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         /*update fte with current process. */
         frame_table_update(fte, spte, thread_current());
         lock_release(&frame_table_lock);
+
     }
     else 
     {   
         /* There is an empty page in user pool */
         fte = create_fte(vaddr, spte);  
+        if (!fte) palloc_free_page(vaddr);
     }
     
     //spte -> state = MEMORY; this is done in spte_create
@@ -84,6 +87,7 @@ frame_table_update(struct fte *fte, struct spte *spte , struct thread *t)
 struct fte *
 create_fte(void *addr, struct spte *spte)
 {
+    ASSERT(pg_round_down(addr) == addr);
     struct fte *new_fte;
     new_fte = malloc(sizeof(struct fte));
     new_fte -> frame = addr;

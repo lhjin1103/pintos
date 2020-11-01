@@ -22,6 +22,7 @@ swap_out(void *victim_frame)
     lock_acquire(&swap_lock);
     block_sector_t free_index = bitmap_scan_and_flip(swap_table, 0, 8, false); 
     if (free_index == BITMAP_ERROR) ASSERT("NO free index in swap disk");
+    bitmap_filp(swap_table, free_index);
     for (int i = 0; i < 8; i++)
     { 
         block_write(swap_disk, free_index + i, (uint8_t *)victim_frame + i * BLOCK_SECTOR_SIZE);
