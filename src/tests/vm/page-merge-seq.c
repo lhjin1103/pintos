@@ -47,7 +47,6 @@ sort_chunks (void)
       int handle;
 
       msg ("sort chunk %zu", i);
-
       /* Write this chunk to a file. */
       quiet = true;
       CHECK ((handle = open ("buffer")) > 1, "open \"buffer\"");

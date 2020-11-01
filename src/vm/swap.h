@@ -28,5 +28,6 @@ struct lock swap_lock;
 void swap_init(void);
 block_sector_t swap_out(void *victim_frame);
 void swap_in(block_sector_t swap_location,void *frame);
+void swap_clear(block_sector_t swap_location);
     
 

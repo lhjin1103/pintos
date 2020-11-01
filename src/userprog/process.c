@@ -24,6 +24,7 @@
 
 #include "vm/frame.h"
 #include "lib/kernel/hash.h"
+#include "vm/swap.h"
 
 
 
@@ -655,6 +656,10 @@ destroy_vm(struct hash_elem *elem, void *aux UNUSED)
     struct fte *fte = fte_from_spte(&frame_table, spte);
     ASSERT (fte != NULL);
     frame_destroy(fte);
+  }
+  else if (spte -> state == SWAP_DISK)
+  {
+    swap_clear(spte -> swap_location);
   }
   spte_destroy(spte);
 }
