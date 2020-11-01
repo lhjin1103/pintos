@@ -35,6 +35,7 @@ test_main (void)
   /* Decrypt back to zeros. */
   msg ("read/modify/write pass two");
   arc4_init (&arc4, "foobar", 6);
+  msg("check");
   arc4_crypt (&arc4, buf, SIZE);
 
   /* Check that it's all 0x5a. */

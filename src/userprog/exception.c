@@ -160,12 +160,21 @@ page_fault (struct intr_frame *f)
 
   /* Implemented in project 3-1 and 3-2.*/
 
+   /* check if the user process is trying to write in the non-writable data segment */
+   //if (write && is_kernel_vaddr(fault_addr)) syscall_exit(-1);
+   if (write)
+   {
+      struct spte *spte = spte_from_addr(fault_addr);
+      if (spte && (! spte -> writable)) syscall_exit(-1);
+   }
+
   bool load = false;
    if (not_present && is_user_vaddr(fault_addr)) 
    {
       struct spte *spte = spte_from_addr(fault_addr);
       if (spte)
       {
+         if (write && (! spte->writable)) syscall_exit(-1);
          ASSERT(spte -> state != MEMORY);
          if(spte->state == EXEC_FILE)
             load = load_from_exec(spte);
@@ -220,6 +229,7 @@ stack_growth(void *addr)
    void *upage = pg_round_down(addr);
    struct spte *spte = spte_create(MEMORY, upage, 0);
    if (!spte) return false;
+   spte -> writable = true;
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (!fte) return false;
    void *kpage = fte -> frame;

@@ -475,6 +475,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Implemented in project 3. */
       struct spte *spte = spte_create(MEMORY, upage, 0);
       if (spte == NULL) return false;
+      spte -> writable = false;
       
       struct fte *fte = frame_alloc(PAL_USER, spte);
       if (fte == NULL)
@@ -538,6 +539,7 @@ setup_stack (void **esp, char** argv, int argc)
   
   struct spte *spte = spte_create(MEMORY, upage, 0);
   if (spte == NULL) return false;
+  spte -> writable = true;
   
   struct fte *fte = frame_alloc(PAL_USER | PAL_ZERO, spte);
   if (fte == NULL)

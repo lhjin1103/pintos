@@ -15,6 +15,7 @@
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -41,6 +42,7 @@ static void syscall_close(int fd);
 int allocate_fd(struct list *fd_list);
 struct file* file_from_fd(int fd);
 static void check_valid_pointer(void *p);
+//static void check_writable_pointer(void *p);
 
 static void
 syscall_handler (struct intr_frame *f) 
@@ -323,6 +325,7 @@ syscall_write(int fd, void *buffer, unsigned int size)
   }
   else
   {
+    //check_writable_pointer(buffer);
     struct file *f = file_from_fd(fd);
     if (f==NULL) {
       lock_release(&file_lock);
@@ -377,7 +380,6 @@ check_valid(void *p)
   if (!user) syscall_exit(-1);
   uint32_t *addr = pagedir_get_page(thread_current()->pagedir, p);
   if (addr == NULL) syscall_exit(-1);
-
 }
 
 static void
@@ -388,6 +390,15 @@ check_valid_pointer(void *p)
   check_valid(p+2);
   check_valid(p+3);
 }
+
+/*
+static void
+check_writable_pointer(void *p)
+{
+  struct spte *spte = spte_from_addr(p);
+  if (! spte -> writable) syscall_exit(-1);
+}
+*/
 
 int 
 allocate_fd(struct list *fd_list)

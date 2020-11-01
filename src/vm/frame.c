@@ -9,6 +9,7 @@
 struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
 struct fte * create_fte(void *vaddr, struct spte *spte);
+static void pte_clear(struct fte *fte);
 
 struct list frame_table;
 struct lock frame_table_lock;
@@ -34,8 +35,12 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         vaddr = fte -> frame;
         ASSERT(vaddr != NULL);
 
+        /*clear victim fte. */
         block_sector_t swap_location = swap_out(vaddr);
         spte_update(fte->spte, swap_location);
+        pte_clear(fte);
+        
+        /*update fte with current process. */
         frame_table_update(fte, spte, thread_current());
         lock_release(&frame_table_lock);
     }
@@ -71,17 +76,17 @@ find_victim()
 void 
 frame_table_update(struct fte *fte, struct spte *spte , struct thread *t)
 {
-    pagedir_clear_page(t->pagedir, fte->spte->upage);
+    //pagedir_clear_page(t->pagedir, fte->spte->upage);
     fte->spte = spte;
     fte->thread = t;
 }
 
 struct fte *
-create_fte(void *vaddr, struct spte *spte)
+create_fte(void *addr, struct spte *spte)
 {
     struct fte *new_fte;
     new_fte = malloc(sizeof(struct fte));
-    new_fte -> frame = vaddr;
+    new_fte -> frame = addr;
     new_fte -> spte = spte;
     new_fte -> thread = thread_current();
     lock_acquire(&frame_table_lock);
@@ -100,4 +105,9 @@ fte_from_spte(struct list *frame_table, struct spte *spte)
         if (fte -> spte == spte) return fte;
     }
     return NULL;
+}
+
+static void
+pte_clear(struct fte *fte){
+    pagedir_clear_page(fte -> thread -> pagedir, fte -> spte -> upage);
 }

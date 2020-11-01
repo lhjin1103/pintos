@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "threads/thread.h"
 //#include "vm/frame.h"
+#include "threads/vaddr.h"
 
 
 unsigned hashing_func(const struct hash_elem *e, void *aux UNUSED);
@@ -24,7 +25,9 @@ spte_from_addr(void *addr)
     struct spte std_spte;
     struct hash_elem *target_hash_elem;
 
-    std_spte.upage = addr;
+    void *upage = pg_round_down(addr);
+
+    std_spte.upage = upage;
     target_hash_elem = hash_find(&(thread_current()->spt), &(std_spte.elem));
     
     return hash_entry(target_hash_elem, struct spte, elem);
