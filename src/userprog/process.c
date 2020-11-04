@@ -158,9 +158,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
       
-      hash_destroy(&(cur -> spt), destroy_vm);
+
     }  
-  
 
   struct list *fd_list = &(cur->fd_list);
 
@@ -171,8 +170,8 @@ process_exit (void)
     free(f);
   }
 
+  hash_destroy(&(cur -> spt), destroy_vm);
 
-  
 }
 
 /* Sets up the CPU for running user code in the current
@@ -661,5 +660,6 @@ destroy_vm(struct hash_elem *elem, void *aux UNUSED)
   {
     swap_clear(spte -> swap_location);
   }
+  else printf("ERROR: this should not be reached in project 3-1");
   spte_destroy(spte);
 }

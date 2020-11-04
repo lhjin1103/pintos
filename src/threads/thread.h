@@ -116,6 +116,8 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     struct hash spt;
+
+    void *esp;
   };
 
 struct fd_struct{

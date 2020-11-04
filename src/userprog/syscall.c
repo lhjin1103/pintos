@@ -132,9 +132,7 @@ syscall_handler (struct intr_frame *f)
       void *buffer = *(void **) (esp + 8);
       check_valid_pointer(buffer);
       unsigned int size = *(unsigned int *) (esp + 12);
-
       check_writable_pointer(buffer);
-      
       int return_val = syscall_read(fd, buffer, size);
       f -> eax = return_val;
       break;
@@ -382,10 +380,8 @@ check_valid(void *p)
   bool user = is_user_vaddr(p);
   if (!user) syscall_exit(-1);
   struct spte *spte = spte_from_addr(p);
-  if (!spte) 
-  {
-    syscall_exit(-1);
-  }
+  if (!spte) syscall_exit(-1);
+  
   //uint32_t *addr = pagedir_get_page(thread_current()->pagedir, p);
   //if (addr == NULL) syscall_exit(-1);
 }
@@ -403,7 +399,7 @@ static void
 check_writable_pointer(void *p)
 {
   struct spte *spte = spte_from_addr(p);
-  if (! spte -> writable) syscall_exit(-1);
+  if (spte && (! spte -> writable)) syscall_exit(-1);
 }
 
 

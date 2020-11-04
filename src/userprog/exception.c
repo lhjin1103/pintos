@@ -159,7 +159,15 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   /* Implemented in project 3-1 and 3-2.*/
+   /*
+   void *esp;
 
+   if (user) esp = f -> esp;
+   else  {
+      esp = thread_current() -> esp;
+      //fault_addr = thread_current() -> fault_addr;
+   }
+   */
    /* check if the user process is trying to write in the non-writable data segment */
    //if (write && is_kernel_vaddr(fault_addr)) syscall_exit(-1);
    if (write)
@@ -171,21 +179,26 @@ page_fault (struct intr_frame *f)
    }
 
   bool load = false;
+
    if (not_present && is_user_vaddr(fault_addr)) 
-   {
+   {  
       struct spte *spte = spte_from_addr(fault_addr);
       if (spte)
       {
          if (write && (! spte->writable)) syscall_exit(-1);
          ASSERT(spte -> state != MEMORY);
          if(spte->state == EXEC_FILE)
+         {
             load = load_from_exec(spte);
+            printf("Error: this should not be reached in project 3-1");
+         }
          else if (spte->state == SWAP_DISK)
             load = load_from_swap(spte);
       }else if (fault_addr >= f -> esp - STACK_HEURISTIC)
       {
          load = stack_growth(fault_addr);
       }
+
    }
 
   if (load) return;
@@ -197,6 +210,8 @@ page_fault (struct intr_frame *f)
   {
      syscall_exit(-1);
   }
+
+  syscall_exit(-1);
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to

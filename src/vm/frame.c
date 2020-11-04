@@ -71,6 +71,7 @@ find_victim()
 {
     /* Currently implemented in FIFO.
        Need to change to a better algorithm. */
+    ASSERT(! list_empty(&frame_table));
     struct list_elem *evict_elem = list_pop_back(&frame_table);
     list_push_front(&frame_table, evict_elem);    
     return list_entry (evict_elem, struct fte, elem);
@@ -94,7 +95,7 @@ create_fte(void *addr, struct spte *spte)
     new_fte -> spte = spte;
     new_fte -> thread = thread_current();
     lock_acquire(&frame_table_lock);
-    list_push_back(&frame_table, &(new_fte -> elem));
+    list_push_front(&frame_table, &(new_fte -> elem));
     lock_release(&frame_table_lock);
     return new_fte;
 }

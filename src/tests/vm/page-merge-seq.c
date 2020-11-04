@@ -8,6 +8,8 @@
 #include "tests/lib.h"
 #include "tests/main.h"
 
+#include <stdio.h>
+
 /* This is the max file size for an older version of the Pintos
    file system that had 126 direct blocks each pointing to a
    single disk sector.  We could raise it now. */
@@ -52,7 +54,7 @@ sort_chunks (void)
       CHECK ((handle = open ("buffer")) > 1, "open \"buffer\"");
       write (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);
       close (handle);
-
+      
       /* Sort with subprocess. */
       CHECK ((child = exec ("child-sort buffer")) != -1,
              "exec \"child-sort buffer\"");
@@ -62,7 +64,7 @@ sort_chunks (void)
       CHECK ((handle = open ("buffer")) > 1, "open \"buffer\"");
       read (handle, buf1 + CHUNK_SIZE * i, CHUNK_SIZE);
       close (handle);
-
+      
       quiet = false;
     }
 }
