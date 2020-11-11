@@ -51,7 +51,8 @@ static void
 syscall_handler (struct intr_frame *f) 
 {
   void *esp = f -> esp;
-
+  thread_current() -> esp = esp;
+  
   check_valid_pointer(esp);
 
   int syscall_no = *(int *) esp;

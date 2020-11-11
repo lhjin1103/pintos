@@ -159,7 +159,7 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   /* Implemented in project 3-1 and 3-2.*/
-   /*
+
    void *esp;
 
    if (user) esp = f -> esp;
@@ -167,7 +167,7 @@ page_fault (struct intr_frame *f)
       esp = thread_current() -> esp;
       //fault_addr = thread_current() -> fault_addr;
    }
-   */
+
    /* check if the user process is trying to write in the non-writable data segment */
    //if (write && is_kernel_vaddr(fault_addr)) syscall_exit(-1);
    if (write)
@@ -194,7 +194,7 @@ page_fault (struct intr_frame *f)
          }
          else if (spte->state == SWAP_DISK)
             load = load_from_swap(spte);
-      }else if (fault_addr >= f -> esp - STACK_HEURISTIC)
+      }else if (fault_addr >= esp - STACK_HEURISTIC)
       {
          load = stack_growth(fault_addr);
       }

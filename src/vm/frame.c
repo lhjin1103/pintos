@@ -101,10 +101,10 @@ create_fte(void *addr, struct spte *spte)
 }
 
 struct fte *
-fte_from_spte(struct list *frame_table, struct spte *spte)
+fte_from_spte(struct spte *spte)
 {
     struct list_elem *e;
-    for (e = list_begin(frame_table); e != list_end(frame_table); e = list_next(e))
+    for (e = list_begin(&frame_table); e != list_end(&frame_table); e = list_next(e))
     {
         struct fte *fte = list_entry(e, struct fte, elem);
         if (fte -> spte == spte) return fte;

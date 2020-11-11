@@ -652,7 +652,7 @@ destroy_vm(struct hash_elem *elem, void *aux UNUSED)
   struct spte *spte = hash_entry(elem, struct spte, elem);
   if (spte -> state == MEMORY)
   {
-    struct fte *fte = fte_from_spte(&frame_table, spte);
+    struct fte *fte = fte_from_spte(spte);
     ASSERT (fte != NULL);
     frame_destroy(fte);
   }
