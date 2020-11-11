@@ -15,7 +15,9 @@
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
-#include "vm/page.h"
+//#include "vm/page.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -44,6 +46,7 @@ int allocate_fd(struct list *fd_list);
 struct file* file_from_fd(int fd);
 static void check_valid_pointer(void *p);
 static void check_writable_pointer(void *p);
+static void check_buffer(void *buffer, unsigned int size, void *esp);
 
 
 
@@ -131,8 +134,9 @@ syscall_handler (struct intr_frame *f)
       check_valid_pointer(esp+12);
       int fd = *(int *) (esp + 4);
       void *buffer = *(void **) (esp + 8);
-      check_valid_pointer(buffer);
+      //check_valid_pointer(buffer);
       unsigned int size = *(unsigned int *) (esp + 12);
+      check_buffer(buffer, size, esp);
       check_writable_pointer(buffer);
       int return_val = syscall_read(fd, buffer, size);
       f -> eax = return_val;
@@ -143,9 +147,9 @@ syscall_handler (struct intr_frame *f)
       check_valid_pointer(esp+12);
       int fd = *(int *) (esp + 4);
       const void *buffer = *(void **) (esp + 8);
-      check_valid_pointer(buffer);
+      //check_valid_pointer(buffer);
       unsigned int size = *(unsigned int *) (esp + 12);
-
+      check_buffer(buffer, size, esp);
       int return_val = syscall_write(fd, buffer, size);
       f -> eax = return_val;
       break;
@@ -202,9 +206,12 @@ syscall_exit(int status)
 static int
 syscall_exec(char *cmd_line)
 {
+  //lock_acquire(&file_lock);
   tid_t tid = process_execute(cmd_line);
   struct thread *child = get_from_tid(tid);
   sema_down(&(child -> load_sema));
+  //lock_release(&file_lock);
+
   if (child->load_success) return tid;
   else {
       struct list_elem *e;
@@ -423,4 +430,64 @@ file_from_fd(int fd)
     if (f->fd == fd) return f->file;
   }
   return NULL;
+}
+
+static void load_from_swap_sc(struct spte *spte);
+static void stack_growth_sc(void *addr);
+
+static void
+check_buffer(void *buffer, unsigned int size, void *esp)
+{
+  void *addr;
+  
+  if (buffer==NULL) syscall_exit(-1);
+  bool user = is_user_vaddr(buffer);
+  if (!user) syscall_exit(-1);
+
+  void *upage = pg_round_down(buffer);
+  for (addr = upage; addr < upage + size; addr += PGSIZE)
+  {
+    struct spte *spte = spte_from_addr(addr);
+    if (spte)
+    {
+      if (spte -> state == MEMORY);
+      else if (spte -> state == SWAP_DISK)
+      {
+        load_from_swap_sc(spte);
+      }
+    }
+    else if (addr >= esp - PGSIZE)
+    {
+      stack_growth_sc(addr);
+      esp -=PGSIZE;
+    }
+    else syscall_exit(-1);
+  }
+}
+
+static void
+load_from_swap_sc(struct spte* spte)
+{
+  struct fte *fte = frame_alloc(PAL_USER, spte);
+  void *frame = fte -> frame;
+  if (!install_page(spte->upage, frame, spte->writable)) {
+    frame_destroy(fte);
+  }
+  swap_in(spte -> swap_location, frame);
+  spte -> state = MEMORY;
+}
+
+static void
+stack_growth_sc(void *addr)
+{
+  void *upage = pg_round_down(addr);
+  struct spte *spte = spte_create(MEMORY, upage, 0);
+  spte -> writable = true;
+  struct fte *fte = frame_alloc(PAL_USER, spte);
+  void *kpage = fte -> frame;
+  if (!install_page(upage, kpage, true)) 
+  {
+      spte_destroy(spte);
+      frame_destroy(fte);
+  }
 }
