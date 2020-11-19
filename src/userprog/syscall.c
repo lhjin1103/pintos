@@ -22,6 +22,7 @@
 static void syscall_handler (struct intr_frame *);
 
 #define STACK_HEURISTIC 32
+typedef int mapid_t;
 
 void
 syscall_init (void) 
@@ -41,6 +42,8 @@ static int syscall_write(int fd, void *buffer, unsigned int size);
 static void syscall_seek(int fd, unsigned position);
 static void syscall_tell(int fd);
 static void syscall_close(int fd);
+static mapid_t syscall_mmap(int fd, void *addr);
+static void syscall_munmap(mapid_t mapid);
 
 int allocate_fd(struct list *fd_list);
 struct file* file_from_fd(int fd);
@@ -175,6 +178,23 @@ syscall_handler (struct intr_frame *f)
       check_valid_pointer(esp+4);
       int fd = *(int *) (esp + 4);
       syscall_close(fd);
+      break;
+    }
+    case 13:  //SYS_MMAP
+    {
+      check_valid_pointer(esp+4);
+      int fd = *(int *) (esp + 4);
+      check_valid_pointer(esp+8);
+      void *addr = *(void**) (esp + 8);
+      mapid_t return_val = syscall_mmap(fd, addr);
+      f -> eax = return_val;
+      break;
+    }
+    case 14:  //SYS_MUNMAP
+    {
+      check_valid_pointer(esp+4);
+      mapid_t mapid= *(int *) (esp + 4);
+      syscall_munmap(mapid);
       break;
     }
   }
@@ -379,6 +399,82 @@ syscall_close(int fd)
       break;
       }
   }
+}
+
+static mapid_t
+syscall_mmap(int fd, void *addr)
+{
+  if (!addr) return -1;
+  if (pg_round_down(addr) != addr) return -1;
+  struct file *file = file_from_fd(fd);
+  if (!file) return -1;
+  int l = file_length(file);
+  int offset = 0;
+
+  int check_l = l;
+  int check_addr = addr;
+  
+  while (check_l>0)
+  {
+    if (spte_from_addr(check_addr)) return -1;
+    check_l -= PGSIZE;
+    check_addr += PGSIZE;
+  }
+
+  while (l>0)
+  {
+    int page_read_bytes = (l < PGSIZE)? l: PGSIZE;
+    int page_zero_bytes = PGSIZE - page_read_bytes;
+    struct spte *spte = spte_create(FILE, addr, 0);
+    if (spte == NULL) return false;
+    spte -> writable = true;
+    spte -> file = file;
+    spte -> read_bytes = page_read_bytes;
+    spte -> zero_bytes = page_zero_bytes;
+    spte -> offset = offset;
+
+    /*
+    struct fte *fte = frame_alloc(PAL_USER, spte);
+    if (fte == NULL)
+    {
+      spte_destroy(spte);
+      return false;
+    }
+    uint8_t *kpage = fte -> frame;
+
+
+    if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      {
+        spte_destroy(spte);
+        frame_destroy(fte);
+        palloc_free_page (kpage);
+        
+        return false; 
+      }
+    memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+    if (!install_page (addr, kpage, true)) 
+    {
+
+      spte_destroy(spte);
+      frame_destroy(fte);
+      palloc_free_page (kpage);
+      
+      return false; 
+    }
+    */
+
+    l -= page_read_bytes;
+    l -= page_zero_bytes;
+    addr += PGSIZE;
+    offset += page_read_bytes;
+  }
+  return 1;
+}
+static void 
+syscall_munmap(mapid_t mapid)
+{
+
 }
 
 static void

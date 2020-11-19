@@ -6,7 +6,7 @@ enum page_status
 {
     SWAP_DISK,
     MEMORY,
-    EXEC_FILE
+    FILE
 };
 
 struct spte
@@ -19,6 +19,11 @@ struct spte
     block_sector_t swap_location;
 
     bool writable;
+
+    struct file *file;
+    int read_bytes;
+    int zero_bytes;
+    int offset;
 };
 
 

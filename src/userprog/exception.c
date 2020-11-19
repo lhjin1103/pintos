@@ -187,10 +187,9 @@ page_fault (struct intr_frame *f)
       {
          if (write && (! spte->writable)) syscall_exit(-1);
          ASSERT(spte -> state != MEMORY);
-         if(spte->state == EXEC_FILE)
+         if(spte->state == FILE)
          {
             load = load_from_exec(spte);
-            printf("Error: this should not be reached in project 3-1");
          }
          else if (spte->state == SWAP_DISK)
             load = load_from_swap(spte);
@@ -227,7 +226,45 @@ page_fault (struct intr_frame *f)
 static bool
 load_from_exec(struct spte *spte)
 {
-   return false;
+   struct fte *fte = frame_alloc(PAL_USER, spte);
+   if (fte == NULL)
+   {
+      spte_destroy(spte);
+      return false;
+   }
+   uint8_t *kpage = fte -> frame;
+
+   struct file *file = spte -> file;
+   int page_read_bytes = spte -> read_bytes;
+   int page_zero_bytes = spte -> zero_bytes;
+   int offset = spte -> offset;
+
+   void *addr = spte -> upage;
+
+   lock_acquire(&file_lock);
+
+   if (file_read_at (file, kpage, page_read_bytes, offset) != (int) page_read_bytes)
+   {
+      spte_destroy(spte);
+      frame_destroy(fte);
+      palloc_free_page (kpage);
+      
+      return false; 
+   }
+   lock_release(&file_lock);
+   memset (kpage + page_read_bytes, 0, page_zero_bytes);
+
+   if (!install_page (addr, kpage, spte -> writable)) 
+   {
+      spte_destroy(spte);
+      frame_destroy(fte);
+      palloc_free_page (kpage);
+      
+      return false; 
+   }
+
+   spte -> state = MEMORY;
+   return true;
 }
 
 static bool

@@ -660,6 +660,5 @@ destroy_vm(struct hash_elem *elem, void *aux UNUSED)
   {
     swap_clear(spte -> swap_location);
   }
-  else printf("ERROR: this should not be reached in project 3-1");
   spte_destroy(spte);
 }
