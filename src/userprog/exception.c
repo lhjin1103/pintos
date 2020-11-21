@@ -17,7 +17,7 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
-static bool load_from_exec(struct spte *spte);
+static bool load_from_file(struct spte *spte);
 static bool load_from_swap(struct spte *spte);
 static bool stack_growth(void *addr);
 
@@ -189,7 +189,7 @@ page_fault (struct intr_frame *f)
          ASSERT(spte -> state != MEMORY);
          if(spte->state == FILE)
          {
-            load = load_from_exec(spte);
+            load = load_from_file(spte);
          }
          else if (spte->state == SWAP_DISK)
             load = load_from_swap(spte);
@@ -224,7 +224,7 @@ page_fault (struct intr_frame *f)
 }
 
 static bool
-load_from_exec(struct spte *spte)
+load_from_file(struct spte *spte)
 {
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (fte == NULL)
@@ -241,7 +241,7 @@ load_from_exec(struct spte *spte)
 
    void *addr = spte -> upage;
 
-   lock_acquire(&file_lock);
+   //lock_acquire(&file_lock);
    if (file_read_at (file, kpage, page_read_bytes, offset) != (int) page_read_bytes)
    {
       spte_destroy(spte);
@@ -250,7 +250,7 @@ load_from_exec(struct spte *spte)
       
       return false; 
    }
-   lock_release(&file_lock);
+   //lock_release(&file_lock);
    memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
    if (!install_page (addr, kpage, spte -> writable)) 

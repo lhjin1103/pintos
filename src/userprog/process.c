@@ -465,7 +465,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
-  file_seek (file, ofs);
+  //file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.
@@ -475,10 +475,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Implemented in project 3. */
-      struct spte *spte = spte_create(MEMORY, upage, 0);
+
+      struct file *new_file = file_reopen(file);
+      struct spte *spte = spte_create(FILE, upage, 0);
       if (spte == NULL) return false;
       spte -> writable = writable;
+      spte -> file = new_file;
+      spte -> read_bytes = page_read_bytes;
+      spte -> zero_bytes = page_zero_bytes;
+      spte -> offset = ofs;
       
+      /*
       struct fte *fte = frame_alloc(PAL_USER, spte);
       if (fte == NULL)
       {
@@ -486,7 +493,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         return false;
       }
       uint8_t *kpage = fte -> frame;
-      
+      */
 
       /* Get a page of memory. */
       /* Blocked in project 3. replaced with the upper code */
@@ -497,6 +504,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       */
 
       /* Load this page. */
+      /*
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           
@@ -507,8 +515,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
+      */
       /* Add the page to the process's address space. */
+      /*
       if (!install_page (upage, kpage, writable)) 
         {
 
@@ -518,11 +527,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           
           return false; 
         }
-
+      */
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += page_read_bytes;
     }
   return true;
 }

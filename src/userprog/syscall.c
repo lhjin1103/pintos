@@ -247,11 +247,9 @@ syscall_exit(int status)
 static int
 syscall_exec(char *cmd_line)
 {
-  //lock_acquire(&file_lock);
   tid_t tid = process_execute(cmd_line);
   struct thread *child = get_from_tid(tid);
   sema_down(&(child -> load_sema));
-  //lock_release(&file_lock);
 
   if (child->load_success) return tid;
   else {
@@ -415,7 +413,9 @@ syscall_close(int fd)
     struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
     if (f->fd == fd) {
       list_remove(e);
+      lock_acquire(&file_lock);
       file_close(f->file);
+      lock_release(&file_lock);
       //free(f);
       break;
       }
@@ -428,14 +428,14 @@ syscall_mmap(int fd, void *addr)
   if (!addr) return -1;
   if (pg_round_down(addr) != addr) return -1;
   struct file *original_file = file_from_fd(fd);
+  if (!original_file) return -1;
   
   lock_acquire(&file_lock);
-  struct file *file = file_reopen(original_file);
-  lock_release(&file_lock);
 
-  if (!file) return -1;
-  
+  struct file *file = file_reopen(original_file);
   int l = file_length(file);
+
+  lock_release(&file_lock);
   int offset = 0;
 
   int check_l = l;
@@ -646,7 +646,7 @@ clear_mte(struct mte *mte)
     spte_destroy(spte);
     
   }
-  lock_acqurie(&file_lock);
+  lock_acquire(&file_lock);
   file_close(mte -> file);
   lock_release(&file_lock);
   free(mte);
