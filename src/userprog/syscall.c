@@ -54,6 +54,7 @@ static void check_buffer(void *buffer, unsigned int size, void *esp);
 
 struct mte
 {
+  struct file *file;
   struct list_elem elem;
   mapid_t mapid;
   struct list spte_list;
@@ -426,8 +427,14 @@ syscall_mmap(int fd, void *addr)
 {
   if (!addr) return -1;
   if (pg_round_down(addr) != addr) return -1;
-  struct file *file = file_from_fd(fd);
+  struct file *original_file = file_from_fd(fd);
+  
+  lock_acquire(&file_lock);
+  struct file *file = file_reopen(original_file);
+  lock_release(&file_lock);
+
   if (!file) return -1;
+  
   int l = file_length(file);
   int offset = 0;
 
@@ -443,6 +450,7 @@ syscall_mmap(int fd, void *addr)
 
   mapid_t mapid = new_mapid();
   struct mte *mte = create_mte(mapid);
+  mte -> file = file;
 
   while (l>0)
   {
@@ -638,5 +646,8 @@ clear_mte(struct mte *mte)
     spte_destroy(spte);
     
   }
+  lock_acqurie(&file_lock);
+  file_close(mte -> file);
+  lock_release(&file_lock);
   free(mte);
 }

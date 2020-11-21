@@ -242,7 +242,6 @@ load_from_exec(struct spte *spte)
    void *addr = spte -> upage;
 
    lock_acquire(&file_lock);
-
    if (file_read_at (file, kpage, page_read_bytes, offset) != (int) page_read_bytes)
    {
       spte_destroy(spte);
