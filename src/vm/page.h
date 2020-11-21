@@ -1,5 +1,6 @@
 #include "lib/kernel/hash.h"
 #include "devices/block.h"
+#include "lib/kernel/list.h"
 
 
 enum page_status
@@ -12,6 +13,8 @@ enum page_status
 struct spte
 {
     struct hash_elem elem;
+
+    struct list_elem listelem;
 
     enum page_status state;
     void *upage;

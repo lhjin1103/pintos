@@ -52,6 +52,16 @@ static void check_writable_pointer(void *p);
 static void check_buffer(void *buffer, unsigned int size, void *esp);
 
 
+struct mte
+{
+  struct list_elem elem;
+  mapid_t mapid;
+  struct list spte_list;
+};
+
+static struct mte * create_mte(mapid_t mapid);
+static mapid_t new_mapid(void);
+static void clear_mte(struct mte *mte);
 
 static void
 syscall_handler (struct intr_frame *f) 
@@ -207,6 +217,7 @@ syscall_handler (struct intr_frame *f)
 int
 syscall_exit(int status)
 {
+  struct list *map_table = &(thread_current() -> map_table);
 
   thread_current()->exit_status = status;
   printf("%s: exit(%d)\n", thread_current()->name, status);
@@ -219,6 +230,15 @@ syscall_exit(int status)
     if (c->status == THREAD_DYING) palloc_free_page(c);
     else c->parent = NULL;
   }
+
+  /* Unmap every mapped files */
+  
+  while (!list_empty(map_table))
+  { 
+    struct mte *mte = list_entry(list_pop_front(map_table), struct mte, elem);
+    clear_mte(mte);
+  }
+  
   thread_exit();
   return status;
 }
@@ -393,9 +413,9 @@ syscall_close(int fd)
   {
     struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
     if (f->fd == fd) {
-      file_close(f->file);
       list_remove(e);
-      free(f);
+      file_close(f->file);
+      //free(f);
       break;
       }
   }
@@ -412,7 +432,7 @@ syscall_mmap(int fd, void *addr)
   int offset = 0;
 
   int check_l = l;
-  int check_addr = addr;
+  void *check_addr = addr;
   
   while (check_l>0)
   {
@@ -420,6 +440,9 @@ syscall_mmap(int fd, void *addr)
     check_l -= PGSIZE;
     check_addr += PGSIZE;
   }
+
+  mapid_t mapid = new_mapid();
+  struct mte *mte = create_mte(mapid);
 
   while (l>0)
   {
@@ -433,48 +456,34 @@ syscall_mmap(int fd, void *addr)
     spte -> zero_bytes = page_zero_bytes;
     spte -> offset = offset;
 
-    /*
-    struct fte *fte = frame_alloc(PAL_USER, spte);
-    if (fte == NULL)
-    {
-      spte_destroy(spte);
-      return false;
-    }
-    uint8_t *kpage = fte -> frame;
-
-
-    if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-      {
-        spte_destroy(spte);
-        frame_destroy(fte);
-        palloc_free_page (kpage);
-        
-        return false; 
-      }
-    memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-    if (!install_page (addr, kpage, true)) 
-    {
-
-      spte_destroy(spte);
-      frame_destroy(fte);
-      palloc_free_page (kpage);
-      
-      return false; 
-    }
-    */
+    list_push_back(&(mte->spte_list), &(spte->listelem));
 
     l -= page_read_bytes;
     l -= page_zero_bytes;
     addr += PGSIZE;
     offset += page_read_bytes;
   }
-  return 1;
+  return mapid;
 }
 static void 
 syscall_munmap(mapid_t mapid)
 {
-
+  struct list_elem *e;
+  struct list *map_table = &(thread_current()->map_table);
+  
+  for (e = list_begin(map_table); e != list_end(map_table); e = list_next(e))
+  {
+    struct mte *mte = list_entry(e, struct mte, elem);
+    
+    if (mte -> mapid == mapid)
+    {
+      list_remove(e);
+      clear_mte(mte);
+      return;
+    }
+    
+  }
+  
 }
 
 static void
@@ -485,9 +494,6 @@ check_valid(void *p)
   if (!user) syscall_exit(-1);
   struct spte *spte = spte_from_addr(p);
   if (!spte) syscall_exit(-1);
-  
-  //uint32_t *addr = pagedir_get_page(thread_current()->pagedir, p);
-  //if (addr == NULL) syscall_exit(-1);
 }
 
 static void
@@ -586,4 +592,51 @@ stack_growth_sc(void *addr)
       spte_destroy(spte);
       frame_destroy(fte);
   }
+}
+
+static struct mte *
+create_mte(mapid_t mapid)
+{
+  struct mte *mte;
+  mte = malloc(sizeof(struct mte));
+  mte -> mapid = mapid;
+  list_init(&(mte -> spte_list));
+  list_push_back(&(thread_current() -> map_table), &(mte -> elem));
+  return mte;
+}
+
+static mapid_t
+new_mapid()
+{
+  struct list *map_table = &(thread_current() -> map_table);
+  if (list_empty(map_table)) return 1;
+  else return list_entry((list_back(map_table)), struct mte, elem) -> mapid +1;
+}
+
+static void
+clear_mte(struct mte *mte)
+{
+  while (!list_empty(&(mte -> spte_list)))
+  {
+    struct spte *spte = list_entry(list_pop_front(&(mte -> spte_list)), struct spte, listelem);
+    //list_remove(&(spte->elem));
+    hash_delete(&(thread_current()->spt), &(spte->elem));
+    if (spte -> state == MEMORY)
+    {
+      void *kpage = pagedir_get_page(thread_current()->pagedir, spte->upage);
+      if (pagedir_is_dirty(thread_current()->pagedir, spte->upage))
+      {
+        lock_acquire(&file_lock);
+        file_write_at(spte->file, kpage, spte -> read_bytes, spte->offset);
+        lock_release(&file_lock);
+      }
+      struct fte *fte = fte_from_spte(spte);
+      pagedir_clear_page(fte -> thread -> pagedir, fte -> spte -> upage);
+      frame_destroy(fte);
+    }
+    
+    spte_destroy(spte);
+    
+  }
+  free(mte);
 }

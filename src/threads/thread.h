@@ -116,6 +116,7 @@ struct thread
     unsigned magic;                     /* Detects stack overflow. */
 
     struct hash spt;
+   struct list map_table;
 
     void *esp;
   };

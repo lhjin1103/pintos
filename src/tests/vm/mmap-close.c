@@ -6,6 +6,7 @@
 #include "tests/arc4.h"
 #include "tests/lib.h"
 #include "tests/main.h"
+#include <stdio.h>
 
 #define ACTUAL ((void *) 0x10000000)
 
@@ -22,6 +23,5 @@ test_main (void)
 
   if (memcmp (ACTUAL, sample, strlen (sample)))
     fail ("read of mmap'd file reported bad data");
-
   munmap (map);
 }
