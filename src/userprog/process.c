@@ -484,6 +484,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       spte -> read_bytes = page_read_bytes;
       spte -> zero_bytes = page_zero_bytes;
       spte -> offset = ofs;
+
+      spte -> file_state = EXEC_FILE;
       
       /*
       struct fte *fte = frame_alloc(PAL_USER, spte);

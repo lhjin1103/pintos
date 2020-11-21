@@ -10,6 +10,13 @@ enum page_status
     FILE
 };
 
+enum file_status
+{
+    MMAP_FILE,
+    EXEC_FILE,
+    NOT_FILE
+};
+
 struct spte
 {
     struct hash_elem elem;
@@ -17,6 +24,7 @@ struct spte
     struct list_elem listelem;
 
     enum page_status state;
+    enum file_status file_state;
     void *upage;
 
     block_sector_t swap_location;

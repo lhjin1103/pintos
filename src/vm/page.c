@@ -54,6 +54,7 @@ spte_create(enum page_status state, void *upage, block_sector_t swap_location)
         new_spte -> swap_location = swap_location;
         //have to be modified
         new_spte -> writable = true;
+        new_spte -> file_state = NOT_FILE;
         hash_insert(&(thread_current() -> spt), &(new_spte -> elem));
     }
     return new_spte;

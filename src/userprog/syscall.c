@@ -463,6 +463,7 @@ syscall_mmap(int fd, void *addr)
     spte -> read_bytes = page_read_bytes;
     spte -> zero_bytes = page_zero_bytes;
     spte -> offset = offset;
+    spte -> file_state = MMAP_FILE;
 
     list_push_back(&(mte->spte_list), &(spte->listelem));
 

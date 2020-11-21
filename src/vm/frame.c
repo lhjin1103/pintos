@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "filesys/file.h"
 
 struct fte *find_victim(void);
 void frame_table_update(struct fte *fte, struct spte *spte, struct thread *t);
@@ -36,7 +37,32 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         vaddr = fte -> frame;
         ASSERT(vaddr != NULL);
 
-        /*clear victim fte. */
+        /*clear victim. */
+        /*
+        if (spte->file_state == NOT_FILE)
+        {
+            block_sector_t swap_location = swap_out(vaddr);
+            spte_update(fte->spte, swap_location);
+        }
+
+        else if (pagedir_is_dirty(fte->thread->pagedir, fte->frame))
+        {
+            if (fte -> spte->file_state == EXEC_FILE)
+            {
+                block_sector_t swap_location = swap_out(vaddr);
+                spte_update(fte->spte, swap_location);  
+            }
+            else if (fte -> spte -> file_state == MMAP_FILE)
+            {
+                lock_acquire(&file_lock);
+                file_write_at(fte -> spte->file, fte->frame , fte ->spte -> read_bytes, fte ->spte->offset);
+                lock_release(&file_lock);
+                fte->spte->state = FILE;
+            }
+        }
+        else fte->spte->state = FILE;
+        */
+        
         block_sector_t swap_location = swap_out(vaddr);
         spte_update(fte->spte, swap_location);
         pte_clear(fte);
