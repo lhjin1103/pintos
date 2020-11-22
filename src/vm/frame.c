@@ -38,14 +38,14 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         ASSERT(vaddr != NULL);
 
         /*clear victim. */
-        /*
-        if (spte->file_state == NOT_FILE)
+        
+        if (fte -> spte->file_state == NOT_FILE)
         {
             block_sector_t swap_location = swap_out(vaddr);
             spte_update(fte->spte, swap_location);
         }
 
-        else if (pagedir_is_dirty(fte->thread->pagedir, fte->frame))
+        else if (pagedir_is_dirty(fte->thread->pagedir, fte->spte->upage))
         {
             if (fte -> spte->file_state == EXEC_FILE)
             {
@@ -61,10 +61,11 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
             }
         }
         else fte->spte->state = FILE;
-        */
         
+        /*
         block_sector_t swap_location = swap_out(vaddr);
         spte_update(fte->spte, swap_location);
+        */
         pte_clear(fte);
         
         /*update fte with current process. */

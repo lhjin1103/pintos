@@ -174,6 +174,7 @@ page_fault (struct intr_frame *f)
    {
       struct spte *spte = spte_from_addr(fault_addr);
       if (spte && (! spte -> writable)) {
+         
          syscall_exit(-1);
       }
    }
@@ -199,7 +200,6 @@ page_fault (struct intr_frame *f)
       }
 
    }
-
   if (load) return;
 
    /* implemented in project2.
