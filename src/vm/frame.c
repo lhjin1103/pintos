@@ -51,6 +51,7 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
             {
                 block_sector_t swap_location = swap_out(vaddr);
                 spte_update(fte->spte, swap_location);  
+                fte -> spte -> file_state = NOT_FILE;
             }
             else if (fte -> spte -> file_state == MMAP_FILE)
             {
@@ -60,7 +61,12 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
                 fte->spte->state = FILE;
             }
         }
-        else fte->spte->state = FILE;
+        else 
+        {
+            fte->spte->state = FILE;
+            //block_sector_t swap_location = swap_out(vaddr);
+            //spte_update(fte->spte, swap_location);  
+        }
         
         /*
         block_sector_t swap_location = swap_out(vaddr);
