@@ -241,7 +241,7 @@ load_from_file(struct spte *spte)
 
    void *addr = spte -> upage;
 
-   //lock_acquire(&file_lock);
+   lock_acquire(&file_lock);
    if (file_read_at (file, kpage, page_read_bytes, offset) != (int) page_read_bytes)
    {
       spte_destroy(spte);
@@ -250,7 +250,7 @@ load_from_file(struct spte *spte)
       
       return false; 
    }
-   //lock_release(&file_lock);
+   lock_release(&file_lock);
    memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
    if (!install_page (addr, kpage, spte -> writable)) 

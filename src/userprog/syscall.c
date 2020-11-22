@@ -50,6 +50,7 @@ struct file* file_from_fd(int fd);
 static void check_valid_pointer(void *p);
 static void check_writable_pointer(void *p);
 static void check_buffer(void *buffer, unsigned int size, void *esp);
+static void unpin_buffer(void *buffer, unsigned int size);
 
 
 struct mte
@@ -153,6 +154,7 @@ syscall_handler (struct intr_frame *f)
       check_buffer(buffer, size, esp);
       check_writable_pointer(buffer);
       int return_val = syscall_read(fd, buffer, size);
+      unpin_buffer(buffer, size);
       f -> eax = return_val;
       break;
     }
@@ -165,6 +167,7 @@ syscall_handler (struct intr_frame *f)
       unsigned int size = *(unsigned int *) (esp + 12);
       check_buffer(buffer, size, esp);
       int return_val = syscall_write(fd, buffer, size);
+      unpin_buffer(buffer, size);
       f -> eax = return_val;
       break;
     }
@@ -544,6 +547,7 @@ file_from_fd(int fd)
 }
 
 static void load_from_swap_sc(struct spte *spte);
+static void load_from_file_sc(struct spte *spte);
 static void stack_growth_sc(void *addr);
 
 static void
@@ -556,15 +560,23 @@ check_buffer(void *buffer, unsigned int size, void *esp)
   if (!user) syscall_exit(-1);
 
   void *upage = pg_round_down(buffer);
-  for (addr = upage; addr < upage + size; addr += PGSIZE)
+  for (addr = upage; addr < buffer + size; addr += PGSIZE)
   {
     struct spte *spte = spte_from_addr(addr);
     if (spte)
     {
-      if (spte -> state == MEMORY);
+      if (spte -> state == MEMORY)
+      {
+        struct fte* fte = fte_from_spte(spte);
+        fte -> pinned = true;
+      }
       else if (spte -> state == SWAP_DISK)
       {
         load_from_swap_sc(spte);
+      }
+      else if (spte -> state == FILE)
+      {
+        load_from_file_sc(spte);
       }
     }
     else if (addr >= esp - PGSIZE)
@@ -586,6 +598,41 @@ load_from_swap_sc(struct spte* spte)
   }
   swap_in(spte -> swap_location, frame);
   spte -> state = MEMORY;
+  fte -> pinned = true;
+}
+
+static void
+load_from_file_sc(struct spte *spte)
+{
+  struct fte *fte = frame_alloc(PAL_USER, spte);
+  uint8_t *kpage = fte -> frame;
+
+  struct file *file = spte -> file;
+  int page_read_bytes = spte -> read_bytes;
+  int page_zero_bytes = spte -> zero_bytes;
+  int offset = spte -> offset;
+  void *addr = spte -> upage;
+
+  lock_acquire(&file_lock);
+  if (file_read_at (file, kpage, page_read_bytes, offset) != (int) page_read_bytes)
+  {
+    spte_destroy(spte);
+    frame_destroy(fte);
+    palloc_free_page (kpage);
+    return;
+  }
+  lock_release(&file_lock);
+  memset (kpage + page_read_bytes, 0, page_zero_bytes);
+  if (!install_page (addr, kpage, spte -> writable)) 
+  {
+    spte_destroy(spte);
+    frame_destroy(fte);
+    palloc_free_page (kpage);
+    return;
+  }
+  spte -> state = MEMORY;
+
+  fte -> pinned = true;
 }
 
 static void
@@ -601,6 +648,20 @@ stack_growth_sc(void *addr)
       spte_destroy(spte);
       frame_destroy(fte);
   }
+  fte -> pinned = true;
+}
+
+static void
+unpin_buffer(void *buffer, unsigned int size)
+{
+  void *upage = pg_round_down(buffer);
+  void *addr;
+  for (addr = upage; addr < buffer + size; addr += PGSIZE)
+  {
+    struct spte *spte = spte_from_addr(addr);    
+    struct fte *fte = fte_from_spte(spte);
+    fte -> pinned = false;
+  }  
 }
 
 static struct mte *

@@ -9,6 +9,8 @@ struct fte
     struct spte *spte;
     struct thread *thread;
     struct list_elem elem;
+    
+    bool pinned;
 };
 
 struct list frame_table;

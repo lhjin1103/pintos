@@ -64,8 +64,6 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         else 
         {
             fte->spte->state = FILE;
-            //block_sector_t swap_location = swap_out(vaddr);
-            //spte_update(fte->spte, swap_location);  
         }
         
         /*
@@ -105,8 +103,22 @@ find_victim()
     /* Currently implemented in FIFO.
        Need to change to a better algorithm. */
     ASSERT(! list_empty(&frame_table));
-    struct list_elem *evict_elem = list_pop_back(&frame_table);
-    list_push_front(&frame_table, evict_elem);    
+    
+    //struct list_elem *evict_elem = list_pop_front(&frame_table);
+    
+    
+    struct list_elem *evict_elem;
+    for (evict_elem = list_begin(&frame_table); evict_elem != list_end(&frame_table); evict_elem = list_next(evict_elem))
+    {
+        struct fte *fte = list_entry(evict_elem, struct fte, elem);
+        if (! fte -> pinned)
+        {
+            list_remove(evict_elem);
+            break;
+        }
+    }
+    
+    list_push_back(&frame_table, evict_elem);    
     return list_entry (evict_elem, struct fte, elem);
 }
 
@@ -127,8 +139,10 @@ create_fte(void *addr, struct spte *spte)
     new_fte -> frame = addr;
     new_fte -> spte = spte;
     new_fte -> thread = thread_current();
+
+    new_fte -> pinned = false;
     lock_acquire(&frame_table_lock);
-    list_push_front(&frame_table, &(new_fte -> elem));
+    list_push_back(&frame_table, &(new_fte -> elem));
     lock_release(&frame_table_lock);
     return new_fte;
 }
