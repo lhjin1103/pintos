@@ -1,6 +1,7 @@
 #include "lib/kernel/hash.h"
 #include "devices/block.h"
 #include "lib/kernel/list.h"
+#include "threads/synch.h"
 
 
 enum page_status
@@ -35,6 +36,8 @@ struct spte
     int read_bytes;
     int zero_bytes;
     int offset;
+
+    struct lock spte_lock;
 };
 
 

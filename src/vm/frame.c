@@ -37,8 +37,10 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         vaddr = fte -> frame;
         ASSERT(vaddr != NULL);
 
+        pte_clear(fte);
+
         /*clear victim. */
-        
+        lock_acquire(&(fte->spte->spte_lock));
         if (fte -> spte->file_state == NOT_FILE)
         {
             block_sector_t swap_location = swap_out(vaddr);
@@ -65,17 +67,19 @@ frame_alloc(enum palloc_flags flags, struct spte *spte)
         {
             fte->spte->state = FILE;
         }
+        lock_release(&(fte->spte->spte_lock));
+
         
         /*
         block_sector_t swap_location = swap_out(vaddr);
         spte_update(fte->spte, swap_location);
         */
-        pte_clear(fte);
+        
         
         /*update fte with current process. */
         frame_table_update(fte, spte, thread_current());
         lock_release(&frame_table_lock);
-
+        fte -> pinned = false;
     }
     else 
     {   
@@ -113,6 +117,7 @@ find_victim()
         struct fte *fte = list_entry(evict_elem, struct fte, elem);
         if (! fte -> pinned)
         {
+            fte -> pinned = true;
             list_remove(evict_elem);
             break;
         }
@@ -140,7 +145,7 @@ create_fte(void *addr, struct spte *spte)
     new_fte -> spte = spte;
     new_fte -> thread = thread_current();
 
-    new_fte -> pinned = false;
+    new_fte -> pinned = true;
     lock_acquire(&frame_table_lock);
     list_push_back(&frame_table, &(new_fte -> elem));
     lock_release(&frame_table_lock);

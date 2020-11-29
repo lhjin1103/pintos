@@ -226,6 +226,7 @@ page_fault (struct intr_frame *f)
 static bool
 load_from_file(struct spte *spte)
 {
+   lock_acquire(&(spte->spte_lock));
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (fte == NULL)
    {
@@ -263,12 +264,14 @@ load_from_file(struct spte *spte)
    }
 
    spte -> state = MEMORY;
+   lock_release(&(spte -> spte_lock));
    return true;
 }
 
 static bool
 load_from_swap(struct spte *spte)
 {
+   lock_acquire(&(spte->spte_lock));
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (fte==NULL) return false;
    void *frame = fte -> frame;
@@ -278,6 +281,7 @@ load_from_swap(struct spte *spte)
    }
    swap_in(spte -> swap_location, frame);
    spte -> state = MEMORY;
+   lock_release(&(spte->spte_lock));
    return true;
 }
 
