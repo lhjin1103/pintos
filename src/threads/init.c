@@ -41,6 +41,8 @@
 #include "vm/swap.h"
 #include "vm/frame.h"
 
+#include "filesys/buffer-cache.h"
+
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -128,6 +130,7 @@ main (void)
   ide_init ();
   locate_block_devices ();
   filesys_init (format_filesys);
+  bcache_init();
 #endif
 
   swap_init();

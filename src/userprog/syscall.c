@@ -439,6 +439,7 @@ syscall_mmap(int fd, void *addr)
   int l = file_length(file);
 
   lock_release(&file_lock);
+  if (!l) return -1;
   int offset = 0;
 
   int check_l = l;
