@@ -224,6 +224,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
         {
           /* Read full sector directly into caller's buffer. */
           block_read (fs_device, sector_idx, buffer + bytes_read);
+          //bcache_read(sector_idx, buffer, unsigned offset, int read_bytes)
         }
       else 
         {
