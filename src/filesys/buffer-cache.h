@@ -7,8 +7,11 @@ void bcache_init(void);
 
 struct bte
 {
+    struct inode *inode; 
     bool dirty;
+    bool occupied;
     int clock_bit;
     block_sector_t disk_sector;
-    void *file_sector_pointer;
+    void *block_pointer;
+    struct list_elem elem;
 };

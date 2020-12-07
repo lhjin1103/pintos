@@ -220,32 +220,34 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       if (chunk_size <= 0)
         break;
 
-      if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
-        {
-          /* Read full sector directly into caller's buffer. */
-          block_read (fs_device, sector_idx, buffer + bytes_read);
-          //bcache_read(sector_idx, buffer, unsigned offset, int read_bytes)
-        }
-      else 
-        {
-          /* Read sector into bounce buffer, then partially copy
-             into caller's buffer. */
-          if (bounce == NULL) 
-            {
-              bounce = malloc (BLOCK_SECTOR_SIZE);
-              if (bounce == NULL)
-                break;
-            }
-          block_read (fs_device, sector_idx, bounce);
-          memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
-        }
+      //여기서 bcache_read
+      bcache_read(sector_idx, buffer + bytes_read, sector_ofs, chunk_size);
+
+      // if (sector_ofs == 0 && chunk_size == BLOCK_SECTOR_SIZE)
+      //   {
+      //     /* Read full sector directly into caller's buffer. */
+      //     block_read (fs_device, sector_idx, buffer + bytes_read);
+      //   }
+      // else 
+      //   {
+      //     /* Read sector into bounce buffer, then partially copy
+      //        into caller's buffer. */
+      //     if (bounce == NULL) 
+      //       {
+      //         bounce = malloc (BLOCK_SECTOR_SIZE);
+      //         if (bounce == NULL)
+      //           break;
+      //       }
+      //     block_read (fs_device, sector_idx, bounce);
+      //     memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
+      //   }
       
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
       bytes_read += chunk_size;
     }
-  free (bounce);
+  //free (bounce);
 
   return bytes_read;
 }
