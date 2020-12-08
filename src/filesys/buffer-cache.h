@@ -15,3 +15,5 @@ struct bte
     void *block_pointer;
     struct list_elem elem;
 };
+
+void bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_bytes);
