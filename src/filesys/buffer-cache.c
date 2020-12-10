@@ -11,6 +11,7 @@
 
 
 #define BCACHE_SECTORS 64
+#define WRITE_BEHIND_TICKS 80
 
 void *bcache_pointer;
 struct list bcache_table;
@@ -40,7 +41,7 @@ bcache_init()
 
 
     /*used for asynchronous write behind*/ 
-    thread_create("write_behind", PRI_MIN, async_write_behind, NULL);
+    //thread_create("write_behind", PRI_MIN, async_write_behind, NULL);
     //thread_create("read_ahead", PRI_MIN, async_read_ahead, arg);
 }
 
@@ -209,7 +210,7 @@ async_write_behind(void *aux UNUSED)
     while(true)
     {
         //printf("write_behind \n");
-        timer_sleep(80); //??????? how long???
+        timer_sleep(WRITE_BEHIND_TICKS); //??????? how long???
         write_behind();
     }
 }

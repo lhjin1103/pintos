@@ -40,7 +40,7 @@ static int syscall_filesize(int fd);
 static int syscall_read(int fd, void *buffer, unsigned int size);
 static int syscall_write(int fd, void *buffer, unsigned int size);
 static void syscall_seek(int fd, unsigned position);
-static void syscall_tell(int fd);
+static int syscall_tell(int fd);
 static void syscall_close(int fd);
 static mapid_t syscall_mmap(int fd, void *addr);
 static void syscall_munmap(mapid_t mapid);
@@ -184,7 +184,8 @@ syscall_handler (struct intr_frame *f)
     {
       check_valid_pointer(esp+4);
       int fd = *(int *) (esp + 4);
-      syscall_tell(fd);
+      int return_val = syscall_tell(fd);
+      f -> eax = return_val;
       break;
     }
     case 12:  //SYS_CLOSE
@@ -397,13 +398,14 @@ syscall_seek(int fd, unsigned position)
   lock_release(&file_lock);
 }
 
-static void 
+static int
 syscall_tell(int fd)
 {
   struct file *f = file_from_fd(fd);
   lock_acquire(&file_lock);
-  file_tell(f);
+  int val = file_tell(f);
   lock_release(&file_lock);
+  return val;
 }
 
 static void
