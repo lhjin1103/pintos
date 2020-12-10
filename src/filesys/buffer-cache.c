@@ -4,6 +4,7 @@
 #include "devices/block.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "devices/timer.h"
 
 #include <stdio.h>
 
@@ -24,6 +25,8 @@ extern struct block *fs_device;
 
 static struct bte *bcache_find_victim();
 static struct bte *bcache_find();
+void async_write_behind(void *aux UNUSED);
+void async_read_ahead(void *aux);
 
 void
 bcache_init()
@@ -35,7 +38,8 @@ bcache_init()
 
 
     /*used for asynchronous write behind*/ 
-    //thread_create("write_behind", PRI_MIN, async_write_behind, NULL);
+    thread_create("write_behind", PRI_MIN, async_write_behind, NULL);
+    //thread_create("read_ahead", PRI_MIN, async_read_ahead, arg);
 }
 
 void
@@ -68,6 +72,11 @@ bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_
     //block_read(fs_device, sector, bte -> block_pointer);
     memcpy(user_buffer, bte -> block_pointer + offset, read_bytes);
     bte -> clock_bit = 1;
+
+    //read_ahead
+    // block_sector_t *arg = malloc(BLOCK_SECTOR_SIZE);
+    // *arg = sector + 1;  // next block
+    // thread_create("read_ahead", PRI_MIN, async_read_ahead, arg);
 }
 
 
@@ -109,6 +118,7 @@ bcache_flush(struct bte *bte)
     
     block_write(fs_device, bte ->disk_sector, bte -> block_pointer);
     bte -> dirty = false;
+    sema_up(&bcache_sema);
     
 }
 
@@ -168,19 +178,49 @@ write_behind()
 {
     //lock_acquire(&&bcache_table_lock);
     struct list_elem *e;
+    struct bte *bte;
     for (e = list_begin (&bcache_table); e != list_end (&bcache_table); e = list_next (e)){
-        struct bte *bte = list_entry(e, struct bte, elem);
+        bte = list_entry(e, struct bte, elem);
         if (bte -> dirty) bcache_flush(bte);
     } 
 }
-/*
+
 void
 async_write_behind(void *aux UNUSED)
 {
     while(true)
     {
-        timer_sleep(50); //??????? how long???
-        write_behind(false);
+        //printf("write_behind \n");
+        timer_sleep(80); //??????? how long???
+        write_behind();
     }
 }
-*/
+
+void
+async_read_ahead(void *aux){
+    block_sector_t sector = *(block_sector_t *)aux;
+    struct bte *bte = bcache_find(sector);
+    if (!bte){
+        if (sema_try_down(&bcache_sema))
+        {
+            void *addr = malloc(BLOCK_SECTOR_SIZE);
+            bte = malloc(sizeof(struct bte));
+            if (list_empty(&bcache_table)) 
+            {
+                list_push_back(&bcache_table, &(bte->elem));
+                clock_hand = &(bte -> elem);
+            }
+            else list_insert(clock_hand, &(bte -> elem));
+            bte -> block_pointer = addr;
+        }
+        else
+        {
+            bte = bcache_find_victim();
+            
+        }
+        block_read(fs_device, sector, bte -> block_pointer);
+        bte -> disk_sector = sector;
+        bte -> dirty = false;
+    }
+    free(aux);
+}
