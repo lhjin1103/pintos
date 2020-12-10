@@ -28,6 +28,10 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* List of processes in THREAD_BLOCKED state, that is, process
+  that are sleeping and not be scheduled by scheduler. */
+struct list waiting_list;
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -100,6 +104,7 @@ thread_init (void)
 
   lock_init (&tid_lock);
   list_init (&ready_list);
+  list_init (&waiting_list);
   list_init (&all_list);
 
   #ifdef USERPROG

@@ -94,6 +94,8 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
+    struct list_elem waitelem;
+    int64_t waiting_tick;              /* Time to wake up after sleep. */
 
     struct thread *parent;
     struct list child_list;
