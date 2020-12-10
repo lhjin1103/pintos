@@ -7,6 +7,7 @@
 #include "devices/timer.h"
 
 #include <stdio.h>
+#include <string.h>
 
 
 #define BCACHE_SECTORS 64
@@ -23,8 +24,9 @@ int empty_bcache = 64;
 /* Block device that contains the file system. */
 extern struct block *fs_device;
 
-static struct bte *bcache_find_victim();
-static struct bte *bcache_find();
+static struct bte *bcache_find_victim(void);
+struct bte *bcache_find(block_sector_t sector);
+static void bcache_flush(struct bte *bte);
 void async_write_behind(void *aux UNUSED);
 void async_read_ahead(void *aux);
 
@@ -111,34 +113,50 @@ bcache_write(block_sector_t sector, void *user_buffer, unsigned offset, int writ
     bte -> clock_bit = 1;
     bte -> dirty = true;
 }
-void
+static void
 bcache_flush(struct bte *bte)
 {
     /*flush dirty bte back to the disk memory*/
     
     block_write(fs_device, bte ->disk_sector, bte -> block_pointer);
     bte -> dirty = false;
-    sema_up(&bcache_sema);
+    //sema_up(&bcache_sema);
     
 }
 
 void
-bcache_destroy()
+bcache_clean(struct bte *bte)
+{
+    if (bte -> dirty) bcache_flush(bte);
+    sema_up(&bcache_sema);
+    free(bte -> block_pointer);
+    free(bte);
+}
+
+void
+bcache_destroy(void)
 {
     /* iterate over the buffer cache table. (bcache_table)
         flush to disk if ditry bit is 1
         free bte */
-        struct list_elem *e;
-        for (e = list_begin (&bcache_table); e != list_end (&bcache_table); e = list_next (e)){
-            struct bte *bte = list_entry(e, struct bte, elem);
-            if (bte -> dirty) bcache_flush(bte);
-        }    
 
-    /* free the allocated buffer cache */
-    free(bcache_pointer);
+    struct list_elem *e;
+    struct bte *bte;
+    while (!list_empty(&bcache_table))
+    {
+        e = list_pop_front(&bcache_table);
+        bte = list_entry(e, struct bte, elem);
+        /*
+        if (bte -> dirty) bcache_flush(bte);
+        sema_up(&bcache_sema);
+        free(bte -> block_pointer);
+        free(bte);
+        */
+        bcache_clean(bte);
+    }
 }
 
-static struct bte *
+struct bte *
 bcache_find(block_sector_t sector)
 {
     /* find the file sector in the buffer cache.
@@ -155,7 +173,7 @@ bcache_find(block_sector_t sector)
 }
 
 static struct bte *
-bcache_find_victim()
+bcache_find_victim(void)
 {
     /* find victim, returns struct bte */
     //clock algorithm
@@ -174,7 +192,7 @@ bcache_find_victim()
 }
 
 void
-write_behind()
+write_behind(void)
 {
     //lock_acquire(&&bcache_table_lock);
     struct list_elem *e;

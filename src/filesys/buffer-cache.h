@@ -3,7 +3,7 @@
 
 void *bcache_pointer;
 
-void bcache_init(void);
+
 
 struct bte
 {
@@ -16,4 +16,9 @@ struct bte
     struct list_elem elem;
 };
 
+void bcache_init(void);
 void bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_bytes);
+void bcache_write(block_sector_t sector, void *user_buffer, unsigned offset, int write_bytes);
+struct bte *bcache_find(block_sector_t sector);
+void bcache_clean(struct bte *bte);
+void bcache_destroy(void);

@@ -566,6 +566,7 @@ check_buffer(void *buffer, unsigned int size, void *esp)
     struct spte *spte = spte_from_addr(addr);
     if (spte)
     {
+      lock_acquire(&(spte -> spte_lock));
       if (spte -> state == MEMORY)
       {
         struct fte* fte = fte_from_spte(spte);
@@ -579,6 +580,7 @@ check_buffer(void *buffer, unsigned int size, void *esp)
       {
         load_from_file_sc(spte);
       }
+      lock_release(&spte -> spte_lock);
     }
     else if (addr >= esp - PGSIZE)
     {

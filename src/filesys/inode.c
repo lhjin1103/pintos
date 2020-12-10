@@ -260,7 +260,6 @@ inode_close (struct inode *inode)
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
-
   /* Release resources if this was the last opener. */
   if (--inode->open_cnt == 0)
     {
@@ -270,14 +269,53 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
-          free_map_release (inode->sector, 1);
+          struct inode_disk *disk_inode;
+          disk_inode = malloc(sizeof(struct inode_disk));
+          block_sector_t indirect_blocks[INDIRECT_BLOCK_COUNTS];
+          
+          
+          //free_map_release (inode->sector, 1);
           /*
           free_map_release (inode->data.start,
                             bytes_to_sectors (inode->data.length)); 
           */
+          /*
+          bcache_read(inode -> sector, disk_inode, 0, BLOCK_SECTOR_SIZE);
+          block_sector_t sector_idx;
+          off_t length = disk_inode -> length;
+          off_t i;
+          struct bte *bte;
+          for (i = 0; i < length; i++)
+          {
+            if (i < DIRECT_BLOCK_COUNTS)
+            {
+              sector_idx = (disk_inode -> direct_blocks)[i];
+              bte = bcache_find(sector_idx);
+              if (bte) bcache_clean(bte);
+              free_map_release(sector_idx, 1);
+            }
+            else if (i < DIRECT_BLOCK_COUNTS + INDIRECT_BLOCK_COUNTS)
+            {
+              if (i == DIRECT_BLOCK_COUNTS)
+              {
+                bcache_read(disk_inode -> indirect_blocks, indirect_blocks, 0, BLOCK_SECTOR_SIZE);
+                free_map_release(disk_inode -> indirect_blocks, 1);
+              }
+              sector_idx = (indirect_blocks[i - DIRECT_BLOCK_COUNTS]);
+              bte = bcache_find(sector_idx);
+              if (bte) bcache_clean(bte);
+              free_map_release(sector_idx, 1);
+            }
+            else printf("NOT YET IMPLEMENTED : double indirect blocks\n");
+          }
+          if (disk_inode -> indirect_blocks){
+            bte = bcache_find(disk_inode -> indirect_blocks);
+            if (bte) bcache_clean(bte);
+          
+          }*/
+          free(disk_inode);
         }
-
-      free (inode); 
+        free (inode); 
     }
 }
 

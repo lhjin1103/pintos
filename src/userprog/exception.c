@@ -186,6 +186,7 @@ page_fault (struct intr_frame *f)
       struct spte *spte = spte_from_addr(fault_addr);
       if (spte)
       {
+         lock_acquire(&(spte -> spte_lock));
          if (write && (! spte->writable)) syscall_exit(-1);
          ASSERT(spte -> state != MEMORY);
          if(spte->state == FILE)
@@ -194,6 +195,7 @@ page_fault (struct intr_frame *f)
          }
          else if (spte->state == SWAP_DISK)
             load = load_from_swap(spte);
+         lock_release(&(spte -> spte_lock));
       }else if (fault_addr >= esp - STACK_HEURISTIC)
       {
          load = stack_growth(fault_addr);
@@ -226,7 +228,7 @@ page_fault (struct intr_frame *f)
 static bool
 load_from_file(struct spte *spte)
 {
-   lock_acquire(&(spte->spte_lock));
+   //lock_acquire(&(spte->spte_lock));
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (fte == NULL)
    {
@@ -264,14 +266,14 @@ load_from_file(struct spte *spte)
    }
 
    spte -> state = MEMORY;
-   lock_release(&(spte -> spte_lock));
+   //lock_release(&(spte -> spte_lock));
    return true;
 }
 
 static bool
 load_from_swap(struct spte *spte)
 {
-   lock_acquire(&(spte->spte_lock));
+   //lock_acquire(&(spte->spte_lock));
    struct fte *fte = frame_alloc(PAL_USER, spte);
    if (fte==NULL) return false;
    void *frame = fte -> frame;
@@ -281,7 +283,7 @@ load_from_swap(struct spte *spte)
    }
    swap_in(spte -> swap_location, frame);
    spte -> state = MEMORY;
-   lock_release(&(spte->spte_lock));
+   //lock_release(&(spte->spte_lock));
    return true;
 }
 
