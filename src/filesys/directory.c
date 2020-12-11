@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
@@ -26,7 +27,7 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  return inode_create (sector, entry_cnt * sizeof (struct dir_entry));
+  return inode_create (sector, entry_cnt * sizeof (struct dir_entry), false);
 }
 
 /* Opens and returns the directory for the given INODE, of which
@@ -233,4 +234,12 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         } 
     }
   return false;
+}
+
+bool 
+dir_inode_is_empty(struct inode *inode)
+{
+  struct dir_entry e;
+  if (inode_read_at(inode, &e, sizeof e, 0) == sizeof e && e.in_use) return false;
+  return true;
 }

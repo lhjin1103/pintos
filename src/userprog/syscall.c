@@ -18,6 +18,7 @@
 //#include "vm/page.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "filesys/inode.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -44,6 +45,10 @@ static int syscall_tell(int fd);
 static void syscall_close(int fd);
 static mapid_t syscall_mmap(int fd, void *addr);
 static void syscall_munmap(mapid_t mapid);
+static bool syscall_isdir(int fd);
+static bool syscall_chdir(const char *dir);
+static bool syscall_mkdir(const char *dir);
+static int syscall_inumber(int fd);
 
 int allocate_fd(struct list *fd_list);
 struct file* file_from_fd(int fd);
@@ -212,6 +217,43 @@ syscall_handler (struct intr_frame *f)
       syscall_munmap(mapid);
       break;
     }
+
+    case 15:  //SYS_CHDIR
+    {
+      check_valid_pointer(esp+4);
+      char *dir = *(char **) (esp + 4);
+      bool return_val = syscall_chdir(dir);
+      f -> eax = return_val;
+      break;
+    }
+    case 16:  //SYS_MKDIR
+    {
+      check_valid_pointer(esp + 4);
+      char *dir = *(char **) (esp + 4);
+      bool return_val = syscall_mkdir(dir);
+      f -> eax = return_val;
+      break;
+    }
+    case 17:  //SYS_READDIR
+    {
+      break;
+    }
+    case 18:  //SYS_ISDIR
+    {
+      check_valid_pointer(esp+4);
+      int fd = *(int *) (esp + 4);
+      bool return_val = syscall_isdir(fd);
+      f -> eax = return_val;
+      break;
+    }
+    case 19:  //SYS_INUMBER
+    {
+      check_valid_pointer(esp+4);
+      int fd = *(int *) (esp + 4); 
+      int return_val = syscall_inumber(fd);
+      f -> eax = return_val; 
+      break;
+    }
   }
 
   //printf ("system call!\n");
@@ -279,7 +321,7 @@ syscall_create(char *file, unsigned initial_size)
 {
   if (file[0]=='\0') return 0;
   lock_acquire(&file_lock);
-  bool created = filesys_create(file, initial_size);
+  bool created = filesys_create(file, initial_size, true);
   lock_release(&file_lock);
   return created;
 }
@@ -380,6 +422,10 @@ syscall_write(int fd, void *buffer, unsigned int size)
   {
     struct file *f = file_from_fd(fd);
     if (f==NULL) {
+      lock_release(&file_lock);
+      return -1;
+    }
+    if (file_is_dir(f)){
       lock_release(&file_lock);
       return -1;
     }
@@ -495,11 +541,44 @@ syscall_munmap(mapid_t mapid)
       list_remove(e);
       clear_mte(mte);
       return;
-    }
-    
-  }
-  
+    } 
+  }  
 }
+
+static bool
+syscall_isdir(int fd)
+{
+  struct file *f = file_from_fd(fd);
+  return file_is_dir(f);
+}
+
+static bool 
+syscall_chdir(const char *dir)
+{
+  lock_acquire(&file_lock);
+  bool return_val = mv_dir(dir);
+  lock_release(&file_lock);
+  return return_val;
+}
+
+static bool
+syscall_mkdir(const char *dir)
+{
+  lock_acquire(&file_lock);
+  bool return_val = filesys_create(dir, 0, false);
+  lock_release(&file_lock);
+  return return_val;
+}
+
+static int
+syscall_inumber(int fd)
+{
+  lock_acquire(&file_lock);
+  struct file *f = file_from_fd(fd);
+  int return_val = file_inumber(f);
+  return return_val;
+}
+
 
 static void
 check_valid(void *p)

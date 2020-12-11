@@ -11,14 +11,22 @@
 
 /* Identifies an inode. */
 #define INODE_MAGIC 0x494e4f44
-#define DIRECT_BLOCK_COUNTS 124
+#define DIRECT_BLOCK_COUNTS 123
 #define INDIRECT_BLOCK_COUNTS 128
+
+
+enum inode_state
+{
+  FILE,
+  DIRECTORY
+};
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
     //block_sector_t start;               /* First data sector. */
+    enum inode_state state;
     off_t length;                       /* File size in bytes. */
     //uint32_t unused[125];               /* Not used. */
     block_sector_t direct_blocks[DIRECT_BLOCK_COUNTS];
@@ -104,7 +112,7 @@ inode_init (void)
 
 
 bool
-create_empty_inode(block_sector_t sector)
+create_empty_inode(block_sector_t sector, bool is_file)
 {
   bool success;
   struct inode_disk *disk_inode = NULL;
@@ -113,6 +121,8 @@ create_empty_inode(block_sector_t sector)
   {
     disk_inode -> length = 0;
     disk_inode -> magic = INODE_MAGIC;   
+    if (is_file) disk_inode -> state = FILE;
+    else disk_inode -> state = DIRECTORY;
     bcache_write(sector, disk_inode, 0, BLOCK_SECTOR_SIZE); 
     success = true;
   }
@@ -127,10 +137,11 @@ static bool extend_inode_of_sector(block_sector_t sector, off_t pos);
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, bool is_file)
 {
   ASSERT (length >= 0);
-  return create_empty_inode(sector) && extend_inode_of_sector(sector, length);
+  ASSERT (sizeof (struct inode_disk) == BLOCK_SECTOR_SIZE);
+  return create_empty_inode(sector, is_file) && extend_inode_of_sector(sector, length);
 
   /*
   struct inode_disk *disk_inode = NULL;
@@ -521,7 +532,10 @@ extend_inode_of_sector(block_sector_t sector, off_t pos)
     disk_inode = malloc(sizeof *disk_inode);
     bcache_read(sector, disk_inode, 0, BLOCK_SECTOR_SIZE);
     off_t length = disk_inode -> length;
-
+    if (pos == length) {
+      free(disk_inode);
+      return true;
+    }
 
     static char zeros[BLOCK_SECTOR_SIZE];
     size_t start_sector = bytes_to_sectors(length);
@@ -603,4 +617,20 @@ extend_inode_of_sector(block_sector_t sector, off_t pos)
     success = true;    
     free(disk_inode);
     return success;
+}
+
+bool
+inode_is_dir(struct inode *inode)
+{
+  struct inode_disk *disk_inode = malloc(BLOCK_SECTOR_SIZE);
+  bcache_read(inode -> sector, disk_inode, 0, BLOCK_SECTOR_SIZE);
+  enum inode_state return_state = disk_inode -> state;
+  free(disk_inode);
+  return (return_state == DIRECTORY);
+}
+
+int
+inode_sector(struct inode *inode)
+{
+  return inode -> sector;
 }
