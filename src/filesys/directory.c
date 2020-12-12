@@ -6,6 +6,7 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "threads/thread.h"
+#include "filesys/file.h"
 
 /* A directory. */
 struct dir 
@@ -36,7 +37,7 @@ struct dir *
 dir_open (struct inode *inode) 
 {
   struct dir *dir = calloc (1, sizeof *dir);
-  if (inode != NULL && dir != NULL)
+  if (inode != NULL && ! inode_removed(inode) && dir != NULL)
     {
       dir->inode = inode;
       dir->pos = 0;
@@ -223,11 +224,11 @@ bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
   struct dir_entry e;
-
+  if (!dir || !dir -> inode || inode_removed(dir->inode)) return false;
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
-      if (e.in_use && !strcmp(e.name, ".") && !strcmp(e.name, ".."))
+      if (e.in_use && strcmp(e.name, ".") && strcmp(e.name, ".."))
         {
           strlcpy (name, e.name, NAME_MAX + 1);
           return true;
@@ -240,6 +241,30 @@ bool
 dir_inode_is_empty(struct inode *inode)
 {
   struct dir_entry e;
-  if (inode_read_at(inode, &e, sizeof e, 0) == sizeof e && e.in_use) return false;
+  int pos = 0;
+  while (inode_read_at (inode, &e, sizeof e, pos) == sizeof e) 
+    {
+      pos += sizeof e;
+      if (e.in_use && strcmp(e.name, ".") && strcmp(e.name, ".."))
+      {
+          return false;
+      }
+    }
   return true;
+}
+
+bool
+dir_readdir_from_file(struct file* file, char *name)
+{
+  int inumber = file_inumber(file);
+  struct dir *dir = dir_open(inode_open(inumber));
+  if (!dir || !dir -> inode || inode_removed(dir->inode)) {
+    dir_close(dir);
+    return false;
+  }
+  dir -> pos = file_tell(file);
+  bool return_val = dir_readdir(dir, name);
+  file_seek(file, dir->pos);
+  dir_close(dir);
+  return return_val;
 }

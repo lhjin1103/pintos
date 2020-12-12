@@ -12,6 +12,7 @@
 #define NAME_MAX 14
 
 struct inode;
+struct file;
 
 /* Opening and closing directories. */
 bool dir_create (block_sector_t sector, size_t entry_cnt);
@@ -29,5 +30,6 @@ bool dir_readdir (struct dir *, char name[NAME_MAX + 1]);
 
 
 bool dir_inode_is_empty(struct inode *inode);
+bool dir_readdir_from_file(struct file* file, char *name);
 
 #endif /* filesys/directory.h */

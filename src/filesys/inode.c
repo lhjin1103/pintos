@@ -54,6 +54,13 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
   };
 
+
+bool
+inode_removed(struct inode *inode)
+{
+  return inode->removed;
+}
+
 /* Returns the block device sector that contains byte offset POS
    within INODE.
    Returns -1 if INODE does not contain data for a byte at offset
@@ -485,7 +492,7 @@ extend_inode_of_sector(block_sector_t sector, off_t pos)
         //block_write(fs_device, sector_idx, zeros);
         bcache_write(sector_idx, zeros, 0, BLOCK_SECTOR_SIZE);
       }
-      else printf("NO FREE MAP ALLOCATED\n");        
+      //else printf("NO FREE MAP ALLOCATED\n");        
     }
     if (indirect_flag) bcache_write(disk_inode -> indirect_blocks, indirect_blocks, 0, BLOCK_SECTOR_SIZE);
     if (double_indirect_flag) 

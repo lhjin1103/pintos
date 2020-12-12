@@ -583,10 +583,14 @@ syscall_readdir(int fd, char *name)
 {
   lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
-  int inumber = file_inumber(f);
-  struct dir *dir = dir_open(inode_open(inumber));
+  if (!file_is_dir(f))
+  {
+    lock_release(&file_lock);
+    return false;
+  }
+  bool return_val = dir_readdir_from_file(f, name);
   lock_release(&file_lock);
-  return dir_readdir(dir, name);
+  return return_val;
 }
 
 static int

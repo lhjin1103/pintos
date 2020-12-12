@@ -92,7 +92,6 @@ filesys_open (const char *name)
   struct dir *dir = path_parser(name, &file_name, true);
   //struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
-
   if (dir != NULL && file_name != NULL)
     dir_lookup (dir, file_name, &inode);
   else if (dir != NULL && file_name == NULL)
@@ -100,6 +99,9 @@ filesys_open (const char *name)
 
   dir_close (dir);
 
+  if (inode == NULL || inode_removed(inode)) {
+    return NULL;
+  }
   return file_open (inode);
 }
 
