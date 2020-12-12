@@ -19,6 +19,7 @@
 #include "vm/frame.h"
 #include "vm/swap.h"
 #include "filesys/inode.h"
+#include "filesys/directory.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -48,6 +49,7 @@ static void syscall_munmap(mapid_t mapid);
 static bool syscall_isdir(int fd);
 static bool syscall_chdir(const char *dir);
 static bool syscall_mkdir(const char *dir);
+static bool syscall_readdir(int fd, char*name);
 static int syscall_inumber(int fd);
 
 int allocate_fd(struct list *fd_list);
@@ -236,6 +238,12 @@ syscall_handler (struct intr_frame *f)
     }
     case 17:  //SYS_READDIR
     {
+      check_valid_pointer(esp+4);
+      int fd = *(int *) (esp + 4);
+      check_valid_pointer(esp+8);
+      char *name = *(char **) (esp+8);
+      bool return_val = syscall_readdir(fd, name);
+      f -> eax = return_val;
       break;
     }
     case 18:  //SYS_ISDIR
@@ -570,12 +578,24 @@ syscall_mkdir(const char *dir)
   return return_val;
 }
 
+static bool 
+syscall_readdir(int fd, char *name)
+{
+  lock_acquire(&file_lock);
+  struct file *f = file_from_fd(fd);
+  int inumber = file_inumber(f);
+  struct dir *dir = dir_open(inode_open(inumber));
+  lock_release(&file_lock);
+  return dir_readdir(dir, name);
+}
+
 static int
 syscall_inumber(int fd)
 {
   lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
   int return_val = file_inumber(f);
+  lock_release(&file_lock);
   return return_val;
 }
 

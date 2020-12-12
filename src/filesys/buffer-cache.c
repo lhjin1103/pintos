@@ -147,12 +147,6 @@ bcache_destroy(void)
     {
         e = list_pop_front(&bcache_table);
         bte = list_entry(e, struct bte, elem);
-        /*
-        if (bte -> dirty) bcache_flush(bte);
-        sema_up(&bcache_sema);
-        free(bte -> block_pointer);
-        free(bte);
-        */
         bcache_clean(bte);
     }
 }
