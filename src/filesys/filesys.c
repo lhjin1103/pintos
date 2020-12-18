@@ -50,27 +50,19 @@ struct dir* path_parser(const char *input_path_, char **return_name, bool is_mak
    Fails if a file named NAME already exists,
    or if internal memory allocation fails. */
 bool
-filesys_create (const char *name, off_t initial_size, bool is_file) 
+filesys_create (const char *name, off_t initial_size) 
 {
   block_sector_t inode_sector_idx = 0;
   //struct dir *dir = dir_open_root ();
   char *file_name;
-
   //struct dir *dir = dir_reopen(thread_current() -> dir);
   struct dir *dir = path_parser(name, &file_name, true);
   
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector_idx)
-                  && inode_create (inode_sector_idx, initial_size, is_file)
+                  && inode_create (inode_sector_idx, initial_size, true)
                   && dir_add (dir, file_name, inode_sector_idx));
                   
-  if (success && !is_file)
-  {
-    struct dir* new_dir = dir_open(inode_open(inode_sector_idx));
-    dir_add(new_dir, ".", inode_sector_idx);
-    dir_add(new_dir, "..", inode_sector(dir_get_inode(thread_current()->dir)));
-    dir_close(new_dir); 
-  }
 
   if (!success && inode_sector_idx != 0) 
     free_map_release (inode_sector_idx, 1);
@@ -78,6 +70,33 @@ filesys_create (const char *name, off_t initial_size, bool is_file)
   dir_close (dir);
 
   return success;
+}
+
+bool
+filesys_create_dir(const char *name, off_t entry_count)
+{
+  block_sector_t inode_sector_idx = 0;
+  char *file_name;
+  struct dir *dir = path_parser(name, &file_name, true);
+  bool success = (dir != NULL)
+                  && free_map_allocate(1, &inode_sector_idx)
+                  && dir_create(inode_sector_idx, entry_count)
+                  && dir_add(dir, file_name, inode_sector_idx);
+  if (success)
+  {
+    struct dir* new_dir = dir_open(inode_open(inode_sector_idx));
+    dir_add(new_dir, ".", inode_sector_idx);
+    dir_add(new_dir, "..", inode_sector(dir_get_inode(dir)));
+    dir_close(new_dir);     
+    //printf("create dir name %s at sector %d", name, inode_sector_idx);
+  }
+  if (!success && inode_sector_idx != 0) 
+    free_map_release (inode_sector_idx, 1);
+
+  dir_close (dir);
+
+  return success;
+
 }
 
 /* Opens the file with the given NAME.
@@ -116,6 +135,8 @@ filesys_remove (const char *name)
 
   char *file_name = NULL;
   struct dir *dir = path_parser(name, &file_name, true);
+  
+  if (dir == NULL) return false;
 
   struct inode *rm_inode;
 
@@ -130,6 +151,7 @@ filesys_remove (const char *name)
     inode_close(rm_inode);
     return false;
   }
+  
   if (inode_is_dir(rm_inode) && !dir_inode_is_empty(rm_inode))
   {
     dir_close(dir);
@@ -137,10 +159,9 @@ filesys_remove (const char *name)
     return false;
   } 
 
-
-  bool success = dir != NULL && dir_remove (dir, file_name);
+  bool success = dir_remove (dir, file_name);
   dir_close (dir); 
-  //inode_remove(rm_inode);
+  // inode_remove(rm_inode); This is done inside dir_remove
   inode_close(rm_inode);
 
   return success;
@@ -209,10 +230,10 @@ path_parser(const char *input_path_, char **return_name, bool is_make)
   int i;
   for (i=0; i<argc-1; i++)
   {
-    if (!strcmp(argv[i], ".")) continue;
     dir_lookup(cur_dir, argv[i], &cur_inode);
     if ((!cur_inode) || (!inode_is_dir(cur_inode)))
     {
+      inode_close(cur_inode);
       dir_close(cur_dir);
       cur_dir = NULL;
       break;

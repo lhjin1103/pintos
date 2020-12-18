@@ -304,6 +304,11 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+  /*
+  lock_acquire(&file_lock);
+  if (thread_current() -> dir != NULL ) dir_close(thread_current()->dir);
+  lock_release(&file_lock);
+  */
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -565,9 +570,17 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
     {
       ASSERT (prev != cur);
+      //if (prev->dir) dir_close(prev -> dir);
       if (prev->parent == NULL) palloc_free_page (prev);
+      /*
+      if (prev -> dir != NULL) 
+      {
+        lock_acquire(&file_lock);
+        dir_close(prev -> dir);
+        lock_release(&file_lock);
+      }
+      */
       sema_up(&(prev->exit_sema));
-      
     }
 }
 

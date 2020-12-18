@@ -140,6 +140,7 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -160,14 +161,14 @@ process_exit (void)
     }  
 
   struct list *fd_list = &(cur->fd_list);
-
+  lock_acquire(&file_lock);
   while (!list_empty(fd_list))
   {
     struct fd_struct *f = list_entry(list_pop_front(fd_list), struct fd_struct, fileelem);
     file_close(f->file);
     free(f);
   }
-
+  lock_release(&file_lock);
   hash_destroy(&(cur -> spt), destroy_vm);
 
 }

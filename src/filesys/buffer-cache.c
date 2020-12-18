@@ -49,7 +49,8 @@ void
 bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_bytes)
 {
     //printf("read: %d\n", sector);
-    struct bte *bte = bcache_find(sector);
+    struct bte *bte;
+    bte = bcache_find(sector);
     if (!bte){
         if (sema_try_down(&bcache_sema))
         {
@@ -60,13 +61,16 @@ bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_
                 list_push_back(&bcache_table, &(bte->elem));
                 clock_hand = &(bte -> elem);
             }
-            else list_insert(clock_hand, &(bte -> elem));
+            else 
+            {
+                //list_push_back(&bcache_table, &(bte->elem));
+                list_insert(clock_hand, &(bte -> elem));
+            }
             bte -> block_pointer = addr;
         }
         else
         {
             bte = bcache_find_victim();
-            
         }
         block_read(fs_device, sector, bte -> block_pointer);
         bte -> disk_sector = sector;
@@ -75,7 +79,6 @@ bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_
     //block_read(fs_device, sector, bte -> block_pointer);
     memcpy(user_buffer, bte -> block_pointer + offset, read_bytes);
     bte -> clock_bit = 1;
-
     //read_ahead
     // block_sector_t *arg = malloc(BLOCK_SECTOR_SIZE);
     // *arg = sector + 1;  // next block
@@ -86,8 +89,9 @@ bcache_read(block_sector_t sector, void *user_buffer, unsigned offset, int read_
 void
 bcache_write(block_sector_t sector, void *user_buffer, unsigned offset, int write_bytes)
 {
-    //printf("write: %d\n", sector);
+
     struct bte *bte = bcache_find(sector);
+
     if (!bte){
         if (sema_try_down(&bcache_sema))
         {
@@ -103,7 +107,7 @@ bcache_write(block_sector_t sector, void *user_buffer, unsigned offset, int writ
         }
         else
         {
-            bte = bcache_find_victim();
+            bte = bcache_find_victim();  
             
         }
         block_read(fs_device, sector, bte -> block_pointer);
@@ -128,9 +132,15 @@ bcache_flush(struct bte *bte)
 void
 bcache_clean(struct bte *bte)
 {
+    list_remove(&(bte->elem));
     if (bte -> dirty) bcache_flush(bte);
-    sema_up(&bcache_sema);
+    if (clock_hand == &(bte->elem)) 
+    {
+        if (list_back(&bcache_table) == clock_hand) clock_hand = list_front(&bcache_table);
+        else clock_hand = list_next(clock_hand);
+    }
     free(bte -> block_pointer);
+    sema_up(&bcache_sema);
     free(bte);
 }
 
@@ -140,14 +150,17 @@ bcache_destroy(void)
     /* iterate over the buffer cache table. (bcache_table)
         flush to disk if ditry bit is 1
         free bte */
-
+    //printf("destroy start\n");
     struct list_elem *e;
     struct bte *bte;
     while (!list_empty(&bcache_table))
     {
         e = list_pop_front(&bcache_table);
         bte = list_entry(e, struct bte, elem);
-        bcache_clean(bte);
+        if (bte -> dirty) bcache_flush(bte);
+        sema_up(&bcache_sema);
+        free(bte -> block_pointer);
+        free(bte);
     }
 }
 

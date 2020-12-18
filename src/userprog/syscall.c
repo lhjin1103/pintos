@@ -329,7 +329,7 @@ syscall_create(char *file, unsigned initial_size)
 {
   if (file[0]=='\0') return 0;
   lock_acquire(&file_lock);
-  bool created = filesys_create(file, initial_size, true);
+  bool created = filesys_create(file, initial_size);
   lock_release(&file_lock);
   return created;
 }
@@ -556,8 +556,11 @@ syscall_munmap(mapid_t mapid)
 static bool
 syscall_isdir(int fd)
 {
+  lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
-  return file_is_dir(f);
+  bool return_val = file_is_dir(f);
+  lock_release(&file_lock);
+  return return_val;
 }
 
 static bool 
@@ -573,7 +576,8 @@ static bool
 syscall_mkdir(const char *dir)
 {
   lock_acquire(&file_lock);
-  bool return_val = filesys_create(dir, 0, false);
+  //bool return_val = filesys_create(dir, 0, false);
+  bool return_val = filesys_create_dir(dir, 10);
   lock_release(&file_lock);
   return return_val;
 }
@@ -598,6 +602,7 @@ syscall_inumber(int fd)
 {
   lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
+  if (!f) return -1;
   int return_val = file_inumber(f);
   lock_release(&file_lock);
   return return_val;

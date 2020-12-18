@@ -169,7 +169,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
        ofs += sizeof e) 
     if (!e.in_use)
       break;
-
+  
   /* Write slot. */
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
