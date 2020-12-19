@@ -339,7 +339,6 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       lock_release(&(inode -> extend_lock));
       return 0;
     }
-    lock_release(&(inode -> extend_lock));
   }
 
 
@@ -367,7 +366,10 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       offset += chunk_size;
       bytes_written += chunk_size;
     }
-  if (extend_flag) inode_set_length(inode, final_len);
+  if (extend_flag) {
+    inode_set_length(inode, final_len);
+    lock_release(&(inode -> extend_lock));
+  }
   //free (bounce);
 
   return bytes_written;
