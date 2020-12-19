@@ -328,18 +328,18 @@ static bool
 syscall_create(char *file, unsigned initial_size)
 {
   if (file[0]=='\0') return 0;
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   bool created = filesys_create(file, initial_size);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return created;
 }
 
 static bool 
 syscall_remove(char *file)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   bool removed = filesys_remove(file);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return removed;
 }
 
@@ -350,11 +350,11 @@ syscall_open(char *filename)
   if (filename==NULL) return -1;
   if (filename[0]=='\0') return -1;
 
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   struct file *opened_file = filesys_open(filename);
   
   if (opened_file == NULL) {
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return -1;
   }
   else{
@@ -367,7 +367,7 @@ syscall_open(char *filename)
     new_fd->file = opened_file;
     list_push_back(&(thread_current()->fd_list), &(new_fd->fileelem));
     
-    lock_release(&file_lock); //here..???
+    //lock_release(&file_lock); //here..???
     return new_fd->fd;
   }
 }
@@ -378,9 +378,9 @@ syscall_filesize(int fd)
   struct file *f = file_from_fd(fd);
   if (f==NULL) return -1;
 
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   int l = file_length(f);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   
   return l;
 }
@@ -389,25 +389,25 @@ static int
 syscall_read(int fd, void *buffer, unsigned int size)
 {
   int real_size;
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   if (fd==0)
   {
     real_size = input_getc();
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return real_size;
   }
   else if (fd==1) {
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return -1;
   }
   else{
     struct file *f = file_from_fd(fd);
     if (f==NULL) {
-      lock_release(&file_lock);
+      //lock_release(&file_lock);
       return -1;
     }
     real_size = file_read(f, buffer, size);
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return real_size;
   }
 }
@@ -415,30 +415,30 @@ syscall_read(int fd, void *buffer, unsigned int size)
 static int 
 syscall_write(int fd, void *buffer, unsigned int size)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   if (fd == 1)
   {
     putbuf((char *) buffer, size);
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return size;
   } 
   else if (fd==0) {
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return -1;
   }
   else
   {
     struct file *f = file_from_fd(fd);
     if (f==NULL) {
-      lock_release(&file_lock);
+      //lock_release(&file_lock);
       return -1;
     }
     if (file_is_dir(f)){
-      lock_release(&file_lock);
+      //lock_release(&file_lock);
       return -1;
     }
     int real_size = file_write(f, buffer, size);
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return real_size;
     }
 }
@@ -447,18 +447,18 @@ static void
 syscall_seek(int fd, unsigned position)
 {
   struct file *f = file_from_fd(fd);
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   file_seek(f, position);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
 }
 
 static int
 syscall_tell(int fd)
 {
   struct file *f = file_from_fd(fd);
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   int val = file_tell(f);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return val;
 }
 
@@ -472,9 +472,9 @@ syscall_close(int fd)
     struct fd_struct *f = list_entry(e, struct fd_struct, fileelem);
     if (f->fd == fd) {
       list_remove(e);
-      lock_acquire(&file_lock);
+      //lock_acquire(&file_lock);
       file_close(f->file);
-      lock_release(&file_lock);
+      //lock_release(&file_lock);
       //free(f);
       break;
       }
@@ -489,12 +489,12 @@ syscall_mmap(int fd, void *addr)
   struct file *original_file = file_from_fd(fd);
   if (!original_file) return -1;
   
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
 
   struct file *file = file_reopen(original_file);
   int l = file_length(file);
 
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   if (!l) return -1;
   int offset = 0;
 
@@ -556,55 +556,55 @@ syscall_munmap(mapid_t mapid)
 static bool
 syscall_isdir(int fd)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
   bool return_val = file_is_dir(f);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return return_val;
 }
 
 static bool 
 syscall_chdir(const char *dir)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   bool return_val = mv_dir(dir);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return return_val;
 }
 
 static bool
 syscall_mkdir(const char *dir)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   //bool return_val = filesys_create(dir, 0, false);
   bool return_val = filesys_create_dir(dir, 10);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return return_val;
 }
 
 static bool 
 syscall_readdir(int fd, char *name)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
   if (!file_is_dir(f))
   {
-    lock_release(&file_lock);
+    //lock_release(&file_lock);
     return false;
   }
   bool return_val = dir_readdir_from_file(f, name);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return return_val;
 }
 
 static int
 syscall_inumber(int fd)
 {
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   struct file *f = file_from_fd(fd);
   if (!f) return -1;
   int return_val = file_inumber(f);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   return return_val;
 }
 
@@ -726,7 +726,7 @@ load_from_file_sc(struct spte *spte)
   int offset = spte -> offset;
   void *addr = spte -> upage;
 
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   if (file_read_at (file, kpage, page_read_bytes, offset) != (int) page_read_bytes)
   {
     spte_destroy(spte);
@@ -734,7 +734,7 @@ load_from_file_sc(struct spte *spte)
     palloc_free_page (kpage);
     return;
   }
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
   if (!install_page (addr, kpage, spte -> writable)) 
   {
@@ -809,9 +809,9 @@ clear_mte(struct mte *mte)
       void *kpage = pagedir_get_page(thread_current()->pagedir, spte->upage);
       if (pagedir_is_dirty(thread_current()->pagedir, spte->upage))
       {
-        lock_acquire(&file_lock);
+        //lock_acquire(&file_lock);
         file_write_at(spte->file, kpage, spte -> read_bytes, spte->offset);
-        lock_release(&file_lock);
+        //lock_release(&file_lock);
       }
       struct fte *fte = fte_from_spte(spte);
       pagedir_clear_page(fte -> thread -> pagedir, fte -> spte -> upage);
@@ -821,8 +821,8 @@ clear_mte(struct mte *mte)
     spte_destroy(spte);
     
   }
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   file_close(mte -> file);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   free(mte);
 }

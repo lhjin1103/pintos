@@ -110,7 +110,6 @@ find_victim()
     
     //struct list_elem *evict_elem = list_pop_front(&frame_table);
     
-    
     struct list_elem *evict_elem;
     for (evict_elem = list_begin(&frame_table); evict_elem != list_end(&frame_table); evict_elem = list_next(evict_elem))
     {

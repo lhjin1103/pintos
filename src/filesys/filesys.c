@@ -78,10 +78,10 @@ filesys_create_dir(const char *name, off_t entry_count)
   block_sector_t inode_sector_idx = 0;
   char *file_name;
   struct dir *dir = path_parser(name, &file_name, true);
-  bool success = (dir != NULL)
+  bool success = (dir != NULL
                   && free_map_allocate(1, &inode_sector_idx)
                   && dir_create(inode_sector_idx, entry_count)
-                  && dir_add(dir, file_name, inode_sector_idx);
+                  && dir_add(dir, file_name, inode_sector_idx));
   if (success)
   {
     struct dir* new_dir = dir_open(inode_open(inode_sector_idx));

@@ -161,14 +161,14 @@ process_exit (void)
     }  
 
   struct list *fd_list = &(cur->fd_list);
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   while (!list_empty(fd_list))
   {
     struct fd_struct *f = list_entry(list_pop_front(fd_list), struct fd_struct, fileelem);
     file_close(f->file);
     free(f);
   }
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   hash_destroy(&(cur -> spt), destroy_vm);
 
 }
@@ -295,7 +295,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  lock_acquire(&file_lock);
+  //lock_acquire(&file_lock);
   file = filesys_open (argv[0]);
   if (file == NULL) 
     {
@@ -387,7 +387,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-  lock_release(&file_lock);
+  //lock_release(&file_lock);
   
   free(argv);
   palloc_free_page(fn_copy);
