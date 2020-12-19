@@ -17,6 +17,7 @@
 
 #include "vm/page.h"
 #include "vm/swap.h"
+#include "filesys/directory.h"
 
 
 /* Random value for struct thread's `magic' member.
@@ -101,7 +102,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  
   #ifdef USERPROG
   lock_init(&file_lock);
   #endif
